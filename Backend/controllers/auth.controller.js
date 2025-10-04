@@ -6,8 +6,6 @@ import { Company } from "../models/company.model.js";
 import { getCurrencyByCountry } from "../utils/currencyHelper.js";
 
 
-
-
 const generateAccessAndRefereshTokens = async (user) => {
   try {
     const accessToken = user.generateAccessToken();
@@ -30,7 +28,7 @@ const refreshController = async (req, res) => {
 
   try {
     const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded._id);
 
     if (!user || user.refreshToken !== refreshToken) {
       return res.status(403).json({ message: "Invalid refresh token" });
@@ -45,7 +43,6 @@ const refreshController = async (req, res) => {
     const options={
         httpOnly: true,
         secure: true,
-        sameSite: "strict",
     }
     res.cookie("refreshToken", newRefreshToken,options);
     res.json({ accessToken });
@@ -116,8 +113,8 @@ const register = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .cookie(accessToken, "accessToken", options)
-    .cookie(refreshToken, "refreshToken", options)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(new ApiResponse(201, user, "user registered successfully"));
 });
 
