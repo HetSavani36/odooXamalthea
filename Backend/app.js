@@ -31,7 +31,7 @@ app.use("/api/auth",authRouter)
 app.use("/api/user", userRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/expense", expenseRouter);
-app.use("/api/dashboard", expenseRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 
 app.use("/",(req,res)=>{
