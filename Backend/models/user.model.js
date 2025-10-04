@@ -4,21 +4,38 @@ import bcrypt from "bcrypt";
 
 const UserSchema = new Schema(
   {
-    name: { type: String, required: true, trim: true },
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true,
+    },
     email: {
       type: String,
-      required: true,
+      required: [true, "Email is required"],
       unique: true,
       lowercase: true,
       trim: true,
     },
-    password: { type: String, required: true },
-    avatar: { type: String },
-    phone: { type: String },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
-    isVerified: { type: Boolean, default: false },
-    isBanned: { type: Boolean, default: false },
-    refreshToken: { type: String },
+    password: {
+      type: String,
+      required: [true, "Password is required"],
+      minlength: 6,
+    },
+    role: {
+      type: String,
+      enum: ["admin", "manager", "employee"],
+      default: "employee",
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+    },
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User", 
+      default: null,
+    },
   },
   { timestamps: true }
 );
