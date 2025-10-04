@@ -33,12 +33,17 @@ const UserSchema = new Schema(
     },
     managerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
+      ref: "User",
       default: null,
     },
-    refreshToken:{
-      type:String
-    }
+    refreshToken: {
+      type: String,
+    },
+    currency: {
+      code: { type: String },
+      name: { type: String },
+      symbol: { type: String },
+    },
   },
   { timestamps: true }
 );
@@ -65,6 +70,7 @@ UserSchema.methods.generateAccessToken = function () {
       email: this.email,
       role: this.role,
       name: this.name,
+      companyId:this.companyId
     },
     process.env.ACCESS_TOKEN_SECRET_KEY,
     { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
@@ -78,6 +84,7 @@ UserSchema.methods.generateRefreshToken = function () {
       email: this.email,
       role: this.role,
       name: this.name,
+      companyId: this.companyId,
     },
     process.env.REFRESH_TOKEN_SECRET_KEY,
     { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }

@@ -8,15 +8,7 @@ import { sendEmail } from "../utils/email.js";
 import { Company } from "../models/company.model.js";
 import { getCurrencyByCountry } from "../utils/currencyHelper.js";
 
-function generatePassword(length = 8) {
-  const chars =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return password;
-}
+
 
 
 const generateAccessAndRefereshTokens = async (user) => {
@@ -157,8 +149,8 @@ const login = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .cookie(accessToken, "accessToken", options)
-    .cookie(refreshToken, "refreshToken", options)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(new ApiResponse(200, user, "user logged in successfully"));
 });
 
@@ -171,15 +163,3 @@ export {
   login
 };
 
-
-// const emailText = `
-//     Hello Admin,
-
-//     Your admin account has been created successfully.
-
-//     Email: ${adminEmail}
-//     Password: ${randomPassword}
-
-//     Please login and change your password immediately.
-//   `;
-// await sendEmail(email, "Your Admin Account Password", emailText, null);
