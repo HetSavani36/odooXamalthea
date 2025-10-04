@@ -10,12 +10,11 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import authorizeRole from "../middlewares/authorizableRole.js";
 
 const router = Router();
-router.post("/logout",verifyJWT, authorizeRole("employee", "admin", "manager"), logout);
+router.post("/logout",verifyJWT, logout);
 router.post("/refresh-token", refreshController);
 router.get(
   "/me",
   verifyJWT,
-  authorizeRole("employee", "admin", "manager"),
   meController
 );
 

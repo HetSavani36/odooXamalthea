@@ -20,8 +20,8 @@ import { verifyJWT } from "../middlewares/auth.middleware.js";
 import authorizeRole from "../middlewares/authorizableRole.js";
 
 const router = Router();
-router.use(verifyJWT)
 
+router.use(verifyJWT)
 router.route("/expenses").get(authorizeRole("employee"),getExpenses).post(authorizeRole("employee"),createExpense);
 
 router
