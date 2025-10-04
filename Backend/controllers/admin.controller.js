@@ -161,4 +161,17 @@ const updateUser=asyncHandler(async(req,res)=>{
     )
 })
 
-export { createEmployee, createManager, updateUser, resetPassword };
+const getAll=asyncHandler(async(req,res)=>{
+    const users=await User.find({
+      $or:[
+        {role:"employee"},
+        {role:"manager"}
+      ]
+    }).select("-password -refreshToken")
+
+    res.json(
+      new ApiResponse(200,users,"all users")
+    )
+})
+
+export { createEmployee, createManager, updateUser, resetPassword, getAll };
