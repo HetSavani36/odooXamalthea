@@ -7,7 +7,6 @@ import {
   login
 } from "../controllers/auth.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
-import authorizeRole from "../middlewares/authorizableRole.js";
 
 const router = Router();
 router.post("/logout",verifyJWT, logout);
