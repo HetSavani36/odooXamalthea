@@ -92,34 +92,25 @@ const register = asyncHandler(async (req, res) => {
   const currency = await getCurrencyByCountry(country);
   if (!currency) throw new ApiError(400,"incorrect country")
 
+  if(password!=confirmPassword) throw new ApiError(400,"passworwd not matched")
+
   let company = await Company.create({
     name: name,
     email: email,
     country: country,
-    currency:currency
+    currency:{code:currency.code,name:currency.name,symbol:currency.symbol}
   })
   if (!company) throw new ApiError(500, "company creation failed");
 
-  const user = await User.create({
+  let user = await User.create({
     name: `Admin_${company.name}`,
     email: email,
-    password: generatePassword(7),
+    password: password,
     role: "admin",
     companyId: company._id,
   });
   if (!user) throw new ApiError(500, "user creation failed");
 
-  const emailText = `
-    Hello Admin,
-
-    Your admin account has been created successfully.
-
-    Email: ${adminEmail}
-    Password: ${randomPassword}
-
-    Please login and change your password immediately.
-  `;
-  await sendEmail(email, "Your Admin Account Password", emailText, null);
 
   const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
     user
@@ -179,3 +170,16 @@ export {
   register,
   login
 };
+
+
+// const emailText = `
+//     Hello Admin,
+
+//     Your admin account has been created successfully.
+
+//     Email: ${adminEmail}
+//     Password: ${randomPassword}
+
+//     Please login and change your password immediately.
+//   `;
+// await sendEmail(email, "Your Admin Account Password", emailText, null);

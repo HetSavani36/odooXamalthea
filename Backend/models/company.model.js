@@ -18,14 +18,14 @@ const companySchema = new Schema(
       required: [true, "Country is required"],
     },
     currency: {
-      type: String,
-      required: [true, "Currency is required"], 
+      code: { type: String, required: true }, 
+      name: { type: String, required: true }, 
+      symbol: { type: String, required: true },
     },
     adminId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
-      required: true,
-      default:null
+      ref: "User",
+      default: null,
     },
   },
   { timestamps: true }
