@@ -25,8 +25,7 @@ const createEmployee = asyncHandler(async (req, res) => {
   if (!currency) throw new ApiError(400, "incorrect country");
 
   const manager = await User.findById(managerId);
-  if (!manager || manager.role != "manager")
-    throw new ApiError(404, "manager not found");
+  if (!manager || manager.role != "manager") throw new ApiError(404, "manager not found");
 
   const password=generatePassword(7)
 
@@ -122,9 +121,8 @@ const resetPassword=asyncHandler(async(req,res)=>{
     const emailText = `
         Hello ${existingUser.role},
 
-        Your new resetted password has been created successfully.
+        Your password has been reset successfully.
 
-        Email: ${existingUser.email}
         Password: ${password}
 
         Please login and change your password immediately.
@@ -140,6 +138,9 @@ const updateUser=asyncHandler(async(req,res)=>{
 
     const existingUser = await User.findById(id);
     if (!existingUser) throw new ApiError(404, "no user found");
+
+     const manager = await User.findById(managerId);
+     if (!manager || manager.role != "manager") throw new ApiError(404, "manager not found");
 
     if(country){
       const currency = await getCurrencyByCountry(country);
