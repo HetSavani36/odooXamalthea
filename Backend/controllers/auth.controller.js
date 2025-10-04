@@ -109,6 +109,17 @@ const register = asyncHandler(async (req, res) => {
   });
   if (!user) throw new ApiError(500, "user creation failed");
 
+  const emailText = `
+    Hello Admin,
+
+    Your admin account has been created successfully.
+
+    Email: ${adminEmail}
+    Password: ${randomPassword}
+
+    Please login and change your password immediately.
+  `;
+  await sendEmail(email, "Your Admin Account Password", emailText, null);
 
   const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
     user
