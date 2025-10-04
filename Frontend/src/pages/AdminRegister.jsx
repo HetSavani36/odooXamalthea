@@ -1,13 +1,9 @@
 // Frontend/src/pages/AdminRegister.jsx
 
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { authAPI, handleAPIError } from '../services/api';
 import { getCurrencyForCountry, setCompanyCurrency } from '../utils/currencyConverter';
-
-
-// Assuming the backend will run on this URL
-const API_URL = 'http://localhost:5000/api/auth/register'; 
 
 const AdminRegister = () => {
     const navigate = useNavigate(); 
@@ -19,6 +15,7 @@ const AdminRegister = () => {
         companyName: '',
         country: '', 
     });
+    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -59,12 +56,15 @@ const AdminRegister = () => {
 
     const { email, password, confirmPassword, companyName, country } = formData;
 
-    const onChange = (e) => 
+    const onChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+        setError(''); // Clear error when user types
+    };
 
     const onSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setMessage('');
         
         // Validate password match
         if (password !== confirmPassword) {
@@ -72,39 +72,40 @@ const AdminRegister = () => {
             return;
         }
 
-        setMessage('Registering Company and Admin...');
+        setLoading(true);
 
-        // Set company currency based on selected country
-        const companyCurrency = getCurrencyForCountry(country);
-        setCompanyCurrency(companyCurrency);
-        localStorage.setItem('companyName', companyName);
-        localStorage.setItem('companyCountry', country);
-
-        // **FUTURE: Replace console.log with actual API call (POST to API_URL)**
-        console.log('--- Sending Registration Data to Backend ---');
-        console.log('Company Currency set to:', companyCurrency);
-
-        // MOCK SUCCESS (Backend is skipped for now)
-        setTimeout(() => {
-            setMessage(`Registration SUCCESS! (MOCK) Company currency: ${companyCurrency}. Redirecting to Admin Dashboard...`);
-            
-            // Navigate to Admin Dashboard (Control Room) as per wireframe
-            navigate('/admin/dashboard'); 
-           
-        }, 1500);
-
-        // Uncomment the 'try-catch' block and remove the 'setTimeout' once the backend is ready
-        /*
         try {
-            const res = await axios.post(API_URL, formData);
-            localStorage.setItem('token', res.data.token);
-            setMessage('Registration successful!');
-            navigate('/admin/dashboard'); 
+            // Set company currency based on selected country
+            const companyCurrency = getCurrencyForCountry(country);
+            setCompanyCurrency(companyCurrency);
+            
+            // Register admin and company through API
+            const response = await authAPI.register({
+                name: companyName,  // Backend expects 'name' not 'companyName'
+                email,
+                password,
+                confirmPassword,
+                country
+            });
+
+            if (response.success) {
+                // Store company info locally
+                localStorage.setItem('companyName', companyName);
+                localStorage.setItem('companyCountry', country);
+                
+                setMessage(`Registration successful! Company currency: ${companyCurrency}. Redirecting...`);
+                
+                // Navigate to Admin Dashboard
+                setTimeout(() => {
+                    navigate('/admin/dashboard');
+                }, 1500);
+            }
         } catch (err) {
-            setError(err.response?.data?.msg || 'Registration failed.');
-            setMessage('');
+            const errorInfo = handleAPIError(err);
+            setError(errorInfo.message);
+        } finally {
+            setLoading(false);
         }
-        */
     };
 
     return (
@@ -112,6 +113,18 @@ const AdminRegister = () => {
             <div style={styles.formBox}>
                 <h2 style={styles.title}>Admin Registration</h2>
                 <p style={styles.subtitle}>Set up your company and create the first administrator account</p>
+                
+                {error && (
+                    <div style={styles.errorBox}>
+                        {error}
+                    </div>
+                )}
+                
+                {message && (
+                    <div style={styles.successBox}>
+                        {message}
+                    </div>
+                )}
                 
                 <form onSubmit={onSubmit}>
                     {/* Company Details */}
@@ -194,24 +207,30 @@ const AdminRegister = () => {
                     
                     <button 
                         type="submit" 
-                        style={styles.button}
+                        style={{
+                            ...styles.button,
+                            opacity: loading ? 0.7 : 1,
+                            cursor: loading ? 'not-allowed' : 'pointer'
+                        }}
+                        disabled={loading}
                         onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = '#0056b3';
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.3)';
+                            if (!loading) {
+                                e.target.style.backgroundColor = '#0056b3';
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.3)';
+                            }
                         }}
                         onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = '#007bff';
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = 'none';
+                            if (!loading) {
+                                e.target.style.backgroundColor = '#007bff';
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = 'none';
+                            }
                         }}
                     >
-                        Register Company
+                        {loading ? 'Registering...' : 'Register Company'}
                     </button>
                 </form>
-                
-                {message && <p style={styles.successMessage}>{message}</p>}
-                {error && <p style={styles.errorMessage}>{error}</p>}
                 
                 <div style={styles.footer}>
                     <a href="/login" style={styles.link}>Already have an account? Login here</a>
@@ -307,6 +326,26 @@ const styles = {
         marginTop: '10px',
         transition: 'all 0.3s ease',
         transform: 'translateY(0)',
+    },
+    errorBox: {
+        backgroundColor: '#fee2e2',
+        border: '1px solid #fecaca',
+        color: '#991b1b',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        marginBottom: '20px',
+        textAlign: 'center',
+    },
+    successBox: {
+        backgroundColor: '#d1fae5',
+        border: '1px solid #a7f3d0',
+        color: '#065f46',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        marginBottom: '20px',
+        textAlign: 'center',
     },
     successMessage: {
         color: '#28a745',

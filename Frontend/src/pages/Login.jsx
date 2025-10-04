@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI, handleAPIError } from '../services/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,40 +10,46 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+    setError(''); // Clear error when user types
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login attempt:', formData);
+    setLoading(true);
+    setError('');
     
-    // Mock authentication - determine user role based on email
-    let role = 'employee'; // default
-    
-    if (formData.email.includes('manager') || formData.email.includes('satish') || formData.email.includes('ashish')) {
-      role = 'manager';
-    } else if (formData.email.includes('admin')) {
-      role = 'admin';
-    }
-    
-    // Store current user info
-    localStorage.setItem('currentUser', JSON.stringify({
-      email: formData.email,
-      role: role
-    }));
-    
-    // Navigate based on role
-    if (role === 'admin') {
-      navigate('/admin/dashboard');
-    } else if (role === 'manager') {
-      navigate('/manager/dashboard');
-    } else {
-      navigate('/employee/dashboard');
+    try {
+      const response = await authAPI.login(formData.email, formData.password);
+      
+      if (response.success) {
+        const user = response.data; // User object is directly in response.data
+        
+        // Navigate based on role
+        if (user && user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else if (user && user.role === 'manager') {
+          navigate('/manager/dashboard');
+        } else if (user && user.role === 'employee') {
+          navigate('/employee/dashboard');
+        } else {
+          // Fallback navigation
+          console.log('User role:', user?.role);
+          navigate('/employee/dashboard');
+        }
+      }
+    } catch (err) {
+      const errorInfo = handleAPIError(err);
+      setError(errorInfo.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,6 +75,12 @@ const Login = () => {
 
         <h2 style={styles.title}>Welcome Back</h2>
         <p style={styles.subtitle}>Sign in to continue to your account</p>
+        
+        {error && (
+          <div style={styles.errorBox}>
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.formGroup}>
@@ -101,20 +114,29 @@ const Login = () => {
           </a>
 
           <button 
-            style={styles.button} 
+            style={{
+              ...styles.button,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? 'not-allowed' : 'pointer'
+            }}
             type="submit"
+            disabled={loading}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = '#5568d3';
-              e.target.style.transform = 'translateY(-2px)';
-              e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+              if (!loading) {
+                e.target.style.backgroundColor = '#5568d3';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = '#667eea';
-              e.target.style.transform = 'translateY(0)';
-              e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.3)';
+              if (!loading) {
+                e.target.style.backgroundColor = '#667eea';
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.3)';
+              }
             }}
           >
-            Sign In
+            {loading ? 'Signing In...' : 'Sign In'}
           </button>
 
           <div style={styles.divider}>
@@ -197,6 +219,16 @@ const styles = {
     fontSize: '14px',
     color: '#6b7280',
     marginBottom: '32px',
+    textAlign: 'center',
+  },
+  errorBox: {
+    backgroundColor: '#fee2e2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    marginBottom: '20px',
     textAlign: 'center',
   },
   form: {

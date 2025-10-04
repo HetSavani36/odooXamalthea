@@ -432,12 +432,11 @@ const s = {
     },
     sectionTitle: {
         margin: '0 0 10px 0',
-        fontSize: '16px',
+        fontSize: '13px',
         fontWeight: '600',
         color: '#2d3748',
         textTransform: 'uppercase',
         letterSpacing: '0.5px',
-        fontSize: '13px',
     },
     formGroup: {
         display: 'flex',

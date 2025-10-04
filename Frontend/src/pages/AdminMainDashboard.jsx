@@ -2,30 +2,69 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { adminAPI, authAPI, handleAPIError } from '../services/api';
 
 const AdminMainDashboard = () => {
     const navigate = useNavigate();
+    const [stats, setStats] = useState({
+        totalUsers: 0,
+        pendingApprovals: 0,
+        thisMonthExpenses: 0,
+        activeRules: 0,
+        admins: 0,
+        managers: 0,
+        employees: 0,
+        currency: 'USD',
+    });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try {
+            await authAPI.logout();
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
         // Clear any stored user data
         localStorage.removeItem('userRole');
         localStorage.removeItem('userId');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('currentUser');
         // Navigate to login page
         navigate('/login');
     };
 
-    // Mock data - same as in AdminUserManagement and ManagerDashboard
-    const [stats, setStats] = useState({
-        totalUsers: 4, // Based on mockUsers in AdminUserManagement
-        pendingApprovals: 2, // Based on mockWaitingApproval in ManagerDashboard
-        thisMonthExpenses: 2220.50, // Sum of waiting approval expenses
-        activeRules: 3, // Based on approval rules that might be configured
-        admins: 1,
-        managers: 1,
-        employees: 2,
-        approvedExpenses: 2,
-        draftExpenses: 2,
-    });
+    // Load real admin analytics data
+    const loadAdminData = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await adminAPI.getStats();
+            if (response.success) {
+                const data = response.data;
+                setStats({
+                    totalUsers: data.totalUsersCount || 0,
+                    pendingApprovals: data.pendingApprovalsCount || 0,
+                    thisMonthExpenses: data.monthlyExpenseTotal?.amount || 0,
+                    activeRules: data.activeApprovalRules?.length || 0,
+                    admins: data.adminCount || 0,
+                    managers: data.managerCount || 0,
+                    employees: data.employeeCount || 0,
+                    currency: data.monthlyExpenseTotal?.currency || 'USD',
+                });
+            }
+        } catch (err) {
+            const errorInfo = handleAPIError(err);
+            setError(errorInfo.message);
+            console.error('Failed to load admin data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadAdminData();
+    }, []);
 
     const menuOptions = [
         {
@@ -87,10 +126,28 @@ const AdminMainDashboard = () => {
                 </button>
             </div>
 
+            {/* Error Display */}
+            {error && (
+                <div style={styles.errorBox}>
+                    <strong>Error loading data:</strong> {error}
+                    <button 
+                        onClick={loadAdminData}
+                        style={styles.retryButton}
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
             {/* Quick Stats Section */}
             <div style={styles.quickStats}>
-                <h3 style={styles.statsTitle}>System Overview</h3>
-                <div style={styles.statsGrid}>
+                <h3 style={styles.statsTitle}>System Overview {loading && '(Loading...)'}</h3>
+                {loading ? (
+                    <div style={styles.loadingSpinner}>
+                        Loading admin statistics...
+                    </div>
+                ) : (
+                    <div style={styles.statsGrid}>
                     <div style={styles.statCard}>
                         <div style={styles.statIcon}>👥</div>
                         <div style={styles.statNumber}>{stats.totalUsers}</div>
@@ -109,7 +166,7 @@ const AdminMainDashboard = () => {
                     </div>
                     <div style={styles.statCard}>
                         <div style={styles.statIcon}>💰</div>
-                        <div style={styles.statNumber}>₹{stats.thisMonthExpenses.toLocaleString()}</div>
+                        <div style={styles.statNumber}>{stats.currency === 'USD' ? '$' : stats.currency === 'EUR' ? '€' : '₹'}{stats.thisMonthExpenses.toLocaleString()}</div>
                         <div style={styles.statLabel}>This Month Expenses</div>
                         <div style={styles.statBreakdown}>
                             {stats.approvedExpenses} approved · {stats.draftExpenses} drafts
@@ -123,7 +180,8 @@ const AdminMainDashboard = () => {
                             Pre-configured workflows
                         </div>
                     </div>
-                </div>
+                    </div>
+                )}
             </div>
 
             {/* Menu Options */}
@@ -295,6 +353,34 @@ const styles = {
         fontSize: '14px',
         fontWeight: 'bold',
         width: '100%',
+    },
+    errorBox: {
+        backgroundColor: '#fee2e2',
+        border: '1px solid #fecaca',
+        color: '#991b1b',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        fontSize: '14px',
+        marginBottom: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    retryButton: {
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        padding: '6px 12px',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        marginLeft: '10px',
+    },
+    loadingSpinner: {
+        textAlign: 'center',
+        padding: '40px',
+        color: '#666',
+        fontSize: '16px',
     },
 };
 

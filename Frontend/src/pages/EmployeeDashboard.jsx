@@ -2,34 +2,48 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { expenseAPI, authAPI, handleAPIError } from '../services/api';
 
 const EmployeeDashboard = () => {
     const navigate = useNavigate();
     const [allExpenses, setAllExpenses] = useState([]);
     const [selectedExpense, setSelectedExpense] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    // Function to load all expenses from localStorage
-    const loadExpenses = () => {
-        const drafts = JSON.parse(localStorage.getItem('expenseDrafts') || '[]');
-        const submitted = JSON.parse(localStorage.getItem('expenses') || '[]');
-        
-        // Combine both and sort by date
-        const combined = [...drafts, ...submitted].sort((a, b) => {
-            const dateA = new Date(a.savedAt || a.submittedAt || a.expenseDate);
-            const dateB = new Date(b.savedAt || b.submittedAt || b.expenseDate);
-            return dateB - dateA; // Most recent first
-        });
-        
-        setAllExpenses(combined);
-        
-        console.log('Employee Dashboard - Loaded expenses:', {
-            drafts: drafts.length,
-            submitted: submitted.length,
-            total: combined.length
-        });
+    // Function to load all expenses from API
+    const loadExpenses = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await expenseAPI.getMyExpenses();
+            if (response.success) {
+                // Sort by date - most recent first
+                const sortedExpenses = response.data.sort((a, b) => {
+                    const dateA = new Date(a.createdAt || a.expenseDate);
+                    const dateB = new Date(b.createdAt || b.expenseDate);
+                    return dateB - dateA;
+                });
+                setAllExpenses(sortedExpenses);
+                
+                console.log('Employee Dashboard - Loaded expenses from API:', {
+                    total: sortedExpenses.length,
+                    statuses: sortedExpenses.reduce((acc, exp) => {
+                        acc[exp.status] = (acc[exp.status] || 0) + 1;
+                        return acc;
+                    }, {})
+                });
+            }
+        } catch (err) {
+            const errorInfo = handleAPIError(err);
+            setError(errorInfo.message);
+            console.error('Failed to load expenses:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // Load all expenses (drafts + submitted) from localStorage
+    // Load all expenses from API
     useEffect(() => {
         loadExpenses();
         
@@ -48,6 +62,43 @@ const EmployeeDashboard = () => {
             alert('Only draft expenses can be edited!');
         }
     };
+
+    // Handle expense deletion
+    const handleDelete = async (expenseId) => {
+        if (!window.confirm('Are you sure you want to delete this expense?')) {
+            return;
+        }
+        
+        try {
+            await expenseAPI.delete(expenseId);
+            setAllExpenses(allExpenses.filter(exp => exp._id !== expenseId));
+            alert('Expense deleted successfully!');
+        } catch (err) {
+            const errorInfo = handleAPIError(err);
+            alert(`Failed to delete expense: ${errorInfo.message}`);
+        }
+    };
+
+    // Handle expense submission
+    const handleSubmit = async (expenseId) => {
+        if (!window.confirm('Are you sure you want to submit this expense for approval?')) {
+            return;
+        }
+        
+        try {
+            const response = await expenseAPI.submit(expenseId);
+            if (response.success) {
+                // Refresh the expenses list
+                loadExpenses();
+                alert('Expense submitted for approval!');
+            }
+        } catch (err) {
+            const errorInfo = handleAPIError(err);
+            alert(`Failed to submit expense: ${errorInfo.message}`);
+        }
+    };
+
+
 
     const getStatusStyle = (status) => {
         if (status === 'approved' || status === 'Approved') return { color: '#28a745', fontWeight: 'bold' };
@@ -88,11 +139,39 @@ const EmployeeDashboard = () => {
 
     const totals = calculateTotals();
 
-    const handleLogout = () => {
-        // Clear any session data if needed
-        localStorage.removeItem('currentUser'); // Optional: if you're storing current user
+    const handleLogout = async () => {
+        try {
+            await authAPI.logout();
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+        localStorage.clear();
         navigate('/login');
     };
+
+    if (loading) {
+        return (
+            <div style={dashboardStyle}>
+                <div style={{ 
+                    maxWidth: '1200px', 
+                    margin: '0 auto', 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: '400px' 
+                }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                            fontSize: '24px', 
+                            marginBottom: '16px',
+                            animation: 'spin 1s linear infinite'
+                        }}>⏳</div>
+                        <p style={{ color: '#6b7280', fontSize: '16px' }}>Loading your expenses...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={dashboardStyle}>
