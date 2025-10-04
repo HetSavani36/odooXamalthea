@@ -6,6 +6,14 @@ import { useNavigate } from 'react-router-dom';
 const AdminMainDashboard = () => {
     const navigate = useNavigate();
 
+    const handleLogout = () => {
+        // Clear any stored user data
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userId');
+        // Navigate to login page
+        navigate('/login');
+    };
+
     // Mock data - same as in AdminUserManagement and ManagerDashboard
     const [stats, setStats] = useState({
         totalUsers: 4, // Based on mockUsers in AdminUserManagement
@@ -35,13 +43,6 @@ const AdminMainDashboard = () => {
             color: '#28a745',
         },
         {
-            title: 'Register New Admin',
-            description: 'Add new admin users to the system',
-            icon: '➕',
-            path: '/admin/register',
-            color: '#ffc107',
-        },
-        {
             title: 'Reports & Analytics',
             description: 'View expense reports and statistics',
             icon: '📊',
@@ -66,8 +67,13 @@ const AdminMainDashboard = () => {
     return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <h1 style={styles.title}>Admin Control Room</h1>
-                <p style={styles.subtitle}>Manage your expense management system</p>
+                <div>
+                    <h1 style={styles.title}>Admin Control Room</h1>
+                    <p style={styles.subtitle}>Manage your expense management system</p>
+                </div>
+                <button onClick={handleLogout} style={styles.logoutButton}>
+                    🚪 Logout
+                </button>
             </div>
 
             {/* Quick Stats Section */}
@@ -143,7 +149,9 @@ const styles = {
         minHeight: '100vh',
     },
     header: {
-        textAlign: 'center',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: '40px',
         borderBottom: '3px solid #333',
         paddingBottom: '20px',
@@ -151,6 +159,19 @@ const styles = {
         padding: '30px',
         borderRadius: '8px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    },
+    logoutButton: {
+        padding: '12px 24px',
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '16px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s, transform 0.1s',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+        height: 'fit-content',
     },
     title: {
         margin: '0 0 10px 0',

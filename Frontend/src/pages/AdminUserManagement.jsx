@@ -54,6 +54,14 @@ const AdminUserManagement = () => {
         }
     };
 
+    const handleResetPassword = (user) => {
+        // Generate a random password or send reset email
+        const randomPassword = Math.random().toString(36).slice(-8);
+        alert(`Password reset for ${user.name}\nTemporary password: ${randomPassword}\n\nIn production, this would send an email to ${user.email}`);
+        // FUTURE: POST /api/admin/users/:id/reset-password
+        console.log('Reset password for user:', user.id);
+    };
+
     const getRoleBadgeColor = (role) => {
         switch (role) {
             case 'Admin': return '#dc3545';
@@ -139,6 +147,12 @@ const AdminUserManagement = () => {
                                         Edit
                                     </button>
                                     <button 
+                                        style={styles.resetButton} 
+                                        onClick={() => handleResetPassword(user)}
+                                    >
+                                        Reset Password
+                                    </button>
+                                    <button 
                                         style={styles.deleteButton} 
                                         onClick={() => handleDelete(user.id)}
                                     >
@@ -202,30 +216,27 @@ const AdminUserManagement = () => {
                                     value={formData.role} 
                                     onChange={handleFormChange}
                                 >
-                                    <option value="Admin">Admin</option>
                                     <option value="Manager">Manager</option>
                                     <option value="Employee">Employee</option>
                                 </select>
                             </div>
 
-                            <div style={styles.formGroup}>
-                                <label style={styles.label}>Assign Manager</label>
-                                <select 
-                                    style={styles.input} 
-                                    name="manager" 
-                                    value={formData.manager} 
-                                    onChange={handleFormChange} 
-                                    disabled={formData.role === 'Admin'}
-                                >
-                                    <option value="N/A">N/A (No Manager)</option>
-                                    {mockManagers.map(manager => (
-                                        <option key={manager} value={manager}>{manager}</option>
-                                    ))}
-                                </select>
-                                {formData.role === 'Admin' && (
-                                    <p style={styles.hint}>Admins don't require a manager</p>
-                                )}
-                            </div>
+                            {formData.role !== 'Manager' && (
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Assign Manager</label>
+                                    <select 
+                                        style={styles.input} 
+                                        name="manager" 
+                                        value={formData.manager} 
+                                        onChange={handleFormChange}
+                                    >
+                                        <option value="N/A">N/A (No Manager)</option>
+                                        {mockManagers.map(manager => (
+                                            <option key={manager} value={manager}>{manager}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
 
                             <div style={styles.modalFooter}>
                                 <button 
@@ -350,6 +361,17 @@ const styles = {
         cursor: 'pointer',
         fontSize: '13px',
         marginRight: '8px',
+    },
+    resetButton: {
+        padding: '6px 14px',
+        backgroundColor: '#ffc107',
+        color: '#333',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '13px',
+        marginRight: '8px',
+        fontWeight: '500',
     },
     deleteButton: {
         padding: '6px 14px',

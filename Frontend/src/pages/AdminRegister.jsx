@@ -21,6 +21,41 @@ const AdminRegister = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
+    // List of countries
+    const countries = [
+        'United States',
+        'United Kingdom',
+        'Canada',
+        'Australia',
+        'India',
+        'Germany',
+        'France',
+        'Japan',
+        'China',
+        'Brazil',
+        'Mexico',
+        'Spain',
+        'Italy',
+        'Netherlands',
+        'Sweden',
+        'Switzerland',
+        'Singapore',
+        'United Arab Emirates',
+        'Saudi Arabia',
+        'South Africa',
+        'New Zealand',
+        'Ireland',
+        'Belgium',
+        'Austria',
+        'Denmark',
+        'Norway',
+        'Finland',
+        'Poland',
+        'Portugal',
+        'Greece',
+        'Other'
+    ];
+
     const { email, password, confirmPassword, companyName, country } = formData;
 
     const onChange = (e) => 
@@ -88,15 +123,20 @@ const AdminRegister = () => {
                         </div>
                         <div style={styles.formGroup}>
                             <label style={styles.label}>Country</label>
-                            <input 
+                            <select 
                                 style={styles.input} 
-                                type="text" 
-                                placeholder="e.g., India, USA, UK" 
                                 name="country" 
                                 value={country} 
                                 onChange={onChange} 
-                                required 
-                            />
+                                required
+                            >
+                                <option value="">Select a country</option>
+                                {countries.map((countryName, index) => (
+                                    <option key={index} value={countryName}>
+                                        {countryName}
+                                    </option>
+                                ))}
+                            </select>
                             <p style={styles.hint}>The country determines the default company currency</p>
                         </div>
                     </div>
