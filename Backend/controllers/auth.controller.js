@@ -131,14 +131,12 @@ const register = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
+  const { email, password } = req.body;
 
-  if (!username && !email) throw new ApiError(403, "provide username or email");
+  if (!email) throw new ApiError(403, "provide username or email");
   if (!password) throw new ApiError(403, "provide password");
 
-  let user = await User.findOne({
-    $or: [{ name: username }, { email: email }],
-  }).select("+password");
+  let user = await User.findOne({ email: email })
   if (!user) throw new ApiError(500, "user not found,please register");
 
   const isCorrect = await user.isPasswordCorrect(password);
@@ -153,7 +151,7 @@ const login = asyncHandler(async (req, res) => {
     secure: true,
   };
 
-  user = await User.findById(user._id).select("-googleId -role -avatar");
+  user = await User.findById(user._id).select("-password")
 
   return res
     .status(200)
