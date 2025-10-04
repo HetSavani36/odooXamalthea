@@ -19,9 +19,8 @@ const updateProfile=asyncHandler(async(req,res)=>{
     const user = await User.findById(req.user._id).select("-password -refreshToken");
     if (!user) throw new ApiError(404, "user not found");
     
-    const {fullname,phone}=req.body
-    if (fullname) user.name = fullname;
-    if (phone) user.phone = phone;
+    const {name}=req.body
+    if (name) user.name = name;
     await user.save()
 
     return res.json(new ApiResponse(200, user, "user profile updated"));    

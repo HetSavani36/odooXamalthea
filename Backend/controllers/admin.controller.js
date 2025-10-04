@@ -109,8 +109,33 @@ const createManager = asyncHandler(async (req, res) => {
     res.json(new ApiResponse(201, {}, "new manager created"));
 });
 
+const resetPassword=asyncHandler(async(req,res)=>{
+    const id = req.params.id;
+    const existingUser = await User.findById(id);
+    if (!existingUser) throw new ApiError(404, "no user found");
+
+    const password=generatePassword(7)
+    existingUser.password=password
+    await existingUser.save({validateBeforeSave:false})
+
+    
+    const emailText = `
+        Hello ${existingUser.role},
+
+        Your new resetted password has been created successfully.
+
+        Email: ${existingUser.email}
+        Password: ${password}
+
+        Please login and change your password immediately.
+        `;
+    await sendEmail(email, "Your Reset Password", emailText, null);
+
+    res.json(new ApiResponse(200, {}, "password reset successfully"));
+})
+
 const updateUser=asyncHandler(async(req,res)=>{
-    const id=new mongoose.Types.ObjectId(req.params.id)
+    const id=req.params.id
     const { name, email, role, managerId, country } = req.body;
 
     const existingUser = await User.findById(id);
@@ -136,4 +161,4 @@ const updateUser=asyncHandler(async(req,res)=>{
     )
 })
 
-export { createEmployee, createManager, updateUser };
+export { createEmployee, createManager, updateUser, resetPassword };
