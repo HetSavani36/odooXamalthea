@@ -2,65 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { expenseAPI, authAPI } from '../services/api';
 
-// Mock data: Expenses for different tabs
-const initialWaitingApproval = [
-    { 
-        id: 101, 
-        employee: 'John Smith', 
-        amount: '1250.00', 
-        currency: 'USD', 
-        category: 'Travel', 
-        date: '2025-10-01', 
-        status: 'Waiting Approval',
-        description: 'Flight tickets to New York',
-        paidBy: 'John Smith'
-    },
-    { 
-        id: 102, 
-        employee: 'Sarah Johnson', 
-        amount: '2500.00', 
-        currency: 'EUR', 
-        category: 'Conference', 
-        date: '2025-10-02', 
-        status: 'Waiting Approval',
-        description: 'Tech Summit 2025 registration',
-        paidBy: 'Sarah Johnson'
-    },
-    { 
-        id: 103, 
-        employee: 'Michael Chen', 
-        amount: '450.00', 
-        currency: 'USD', 
-        category: 'Meals', 
-        date: '2025-10-03', 
-        status: 'Waiting Approval',
-        description: 'Client dinner meeting',
-        paidBy: 'Michael Chen'
-    },
-    { 
-        id: 104, 
-        employee: 'Emily Davis', 
-        amount: '3200.00', 
-        currency: 'INR', 
-        category: 'Equipment', 
-        date: '2025-10-03', 
-        status: 'Waiting Approval',
-        description: 'Laptop accessories and monitor',
-        paidBy: 'Emily Davis'
-    },
-    { 
-        id: 105, 
-        employee: 'Alex Martinez', 
-        amount: '180.00', 
-        currency: 'USD', 
-        category: 'Office Supplies', 
-        date: '2025-10-04', 
-        status: 'Waiting Approval',
-        description: 'Stationery and notebooks',
-        paidBy: 'Alex Martinez'
-    },
-];
+
 
 const initialApprovedExpenses = [
     { 
@@ -158,93 +102,174 @@ const initialApprovedExpenses = [
 const ManagerDashboard = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('waitingApproval'); // 'waitingApproval', 'approved', 'rejected'
-    const [waitingApproval, setWaitingApproval] = useState([]);
-    const [approvedExpenses, setApprovedExpenses] = useState([]);
-    const [rejectedExpenses, setRejectedExpenses] = useState([]);
+    const [allExpenses, setAllExpenses] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Load expenses from localStorage on mount
+    // Load expenses from API
     useEffect(() => {
-        const storedWaiting = JSON.parse(localStorage.getItem('managerWaitingApproval'));
-        const storedApproved = JSON.parse(localStorage.getItem('managerApproved'));
-        const storedRejected = JSON.parse(localStorage.getItem('managerRejected')) || [];
-        
-        // If no data in localStorage, use initial dummy data and save it
-        if (!storedWaiting || storedWaiting.length === 0) {
-            localStorage.setItem('managerWaitingApproval', JSON.stringify(initialWaitingApproval));
-            setWaitingApproval(initialWaitingApproval);
-        } else {
-            setWaitingApproval(storedWaiting);
-        }
-        
-        if (!storedApproved || storedApproved.length === 0) {
-            localStorage.setItem('managerApproved', JSON.stringify(initialApprovedExpenses));
-            setApprovedExpenses(initialApprovedExpenses);
-        } else {
-            setApprovedExpenses(storedApproved);
-        }
-        
-        setRejectedExpenses(storedRejected);
+        loadExpenses();
     }, []);
 
-    const handleLogout = () => {
+    const loadExpenses = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            
+            // Get all expenses and filter by status on frontend
+            const response = await expenseAPI.getAllExpenses();
+            console.log('Manager Dashboard - API Response:', response);
+            
+            // Set all expenses - filtering will be done in render
+            if (response.success && response.data) {
+                setAllExpenses(response.data);
+            } else {
+                setAllExpenses([]);
+            }
+        } catch (error) {
+            console.error('Error loading expenses:', error);
+            setError('Failed to load expenses. Please try again.');
+            setAllExpenses([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await authAPI.logout();
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
         navigate('/login');
     };
 
-    const handleResetDemoData = () => {
-        if (confirm('Reset to demo data? This will clear all current expenses and restore initial sample data.')) {
-            localStorage.setItem('managerWaitingApproval', JSON.stringify(initialWaitingApproval));
-            localStorage.setItem('managerApproved', JSON.stringify(initialApprovedExpenses));
-            localStorage.setItem('managerRejected', JSON.stringify([]));
-            
-            setWaitingApproval(initialWaitingApproval);
-            setApprovedExpenses(initialApprovedExpenses);
-            setRejectedExpenses([]);
-            
-            alert('Demo data has been reset successfully!');
+    // Filter expenses based on status
+    const getCurrentExpenses = () => {
+        const statusMap = {
+            'waitingApproval': ['Pending', 'Awaiting Approval', 'Awaiting Admin Review', 'Submitted'],
+            'approved': ['Approved'],
+            'rejected': ['Rejected']
+        };
+        
+        const statusesToShow = statusMap[activeTab] || [];
+        return allExpenses.filter(expense => 
+            statusesToShow.includes(expense.status)
+        );
+    };
+
+    // Handle approve expense
+    const handleApprove = async (expenseId, comments = '') => {
+        try {
+            await expenseAPI.approveExpense(expenseId, comments);
+            // Reload expenses to get updated data
+            loadExpenses();
+            alert('Expense approved successfully!');
+        } catch (error) {
+            console.error('Error approving expense:', error);
+            alert('Failed to approve expense. Please try again.');
         }
     };
 
-    // FUTURE: Fetch data from backend: GET /api/expenses/pending
-    
-    const getCurrentExpenses = () => {
-        switch (activeTab) {
-            case 'waitingApproval':
-                return waitingApproval;
-            case 'approved':
-                return approvedExpenses;
-            case 'rejected':
-                return rejectedExpenses;
-            default:
-                return [];
+    // Handle reject expense
+    const handleReject = async (expenseId, comments = '') => {
+        try {
+            await expenseAPI.rejectExpense(expenseId, comments);
+            // Reload expenses to get updated data
+            loadExpenses();
+            alert('Expense rejected successfully!');
+        } catch (error) {
+            console.error('Error rejecting expense:', error);
+            alert('Failed to reject expense. Please try again.');
         }
     };
 
     const handleViewDetail = (expenseId, expense) => {
         // Pass the expense status to determine if it's read-only
-        const isReadOnly = expense.status === 'Approved' || expense.status === 'approved' || 
-                          expense.status === 'Rejected' || expense.status === 'rejected';
+        const isReadOnly = expense.status === 'approved' || expense.status === 'rejected';
         navigate(`/manager/approval/${expenseId}`, { 
             state: { 
                 isReadOnly: isReadOnly,
                 fromTab: activeTab,
-                expense: expense
+                expense: expense,
+                onApprove: handleApprove,
+                onReject: handleReject
             } 
         });
     };
 
     const getStatusColor = (status) => {
         switch (status) {
-            case 'Waiting Approval': return '#ffc107';
+            case 'Pending':
+            case 'Submitted':
+            case 'Awaiting Approval':
+            case 'Awaiting Admin Review': 
+                return '#ffc107';
             case 'Approved': 
-            case 'approved': 
                 return '#10b981'; // Green
             case 'Rejected': 
-            case 'rejected': 
                 return '#ef4444'; // Red
             default: return '#6b7280';
         }
     };
+
+    if (loading) {
+        return (
+            <div style={styles.container}>
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: '400px' 
+                }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                            fontSize: '24px', 
+                            marginBottom: '16px'
+                        }}>⏳</div>
+                        <p style={{ color: '#6b7280', fontSize: '16px' }}>Loading expenses...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={styles.container}>
+                <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: '400px' 
+                }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ 
+                            fontSize: '24px', 
+                            marginBottom: '16px'
+                        }}>❌</div>
+                        <p style={{ color: '#ef4444', fontSize: '16px' }}>{error}</p>
+                        <button 
+                            onClick={loadExpenses}
+                            style={{
+                                marginTop: '16px',
+                                padding: '8px 16px',
+                                backgroundColor: '#667eea',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.container}>
@@ -254,22 +279,6 @@ const ManagerDashboard = () => {
                     <p style={{ margin: '8px 0 0 0', color: '#6b7280' }}>Review and approve expense submissions</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button 
-                        onClick={handleResetDemoData} 
-                        style={styles.resetButton}
-                        onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = '#5568d3';
-                            e.target.style.transform = 'translateY(-2px)';
-                            e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = '#667eea';
-                            e.target.style.transform = 'translateY(0)';
-                            e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
-                        }}
-                    >
-                        🔄 Reset Demo Data
-                    </button>
                     <button 
                         onClick={handleLogout} 
                         style={styles.logoutButton}
@@ -348,13 +357,13 @@ const ManagerDashboard = () => {
                         </thead>
                         <tbody>
                             {getCurrentExpenses().map(expense => (
-                                <tr key={expense.id} style={styles.tr}>
-                                    <td style={styles.td}>{expense.id}</td>
-                                    <td style={styles.td}>{expense.employee}</td>
+                                <tr key={expense._id || expense.id} style={styles.tr}>
+                                    <td style={styles.td}>{expense._id || expense.id}</td>
+                                    <td style={styles.td}>{expense.employee?.name || expense.employee?.username || 'N/A'}</td>
                                     <td style={styles.td}>{expense.amount}</td>
-                                    <td style={styles.td}>{expense.currency}</td>
+                                    <td style={styles.td}>{expense.currency?.code || expense.currency?.symbol || 'USD'}</td>
                                     <td style={styles.td}>{expense.category}</td>
-                                    <td style={styles.td}>{expense.date}</td>
+                                    <td style={styles.td}>{new Date(expense.date).toLocaleDateString()}</td>
                                     <td style={styles.td}>
                                         <span style={{
                                             ...styles.statusBadge,
@@ -365,7 +374,7 @@ const ManagerDashboard = () => {
                                     </td>
                                     <td style={styles.td}>
                                         <button 
-                                            onClick={() => handleViewDetail(expense.id, expense)}
+                                            onClick={() => handleViewDetail(expense._id || expense.id, expense)}
                                             style={styles.actionButton}
                                             onMouseEnter={(e) => {
                                                 e.target.style.backgroundColor = '#5568d3';
