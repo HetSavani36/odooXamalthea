@@ -161,17 +161,32 @@ const updateUser=asyncHandler(async(req,res)=>{
     )
 })
 
-const getAll=asyncHandler(async(req,res)=>{
-    const users=await User.find({
-      $or:[
-        {role:"employee"},
-        {role:"manager"}
-      ]
-    }).select("-password -refreshToken")
+const getAdminAnalytics = asyncHandler(async (req, res) => {
+  const companyId=new mongoose.Types.ObjectId(req.user.companyId)
 
-    res.json(
-      new ApiResponse(200,users,"all users")
-    )
-})
+  const users = await User.find({
+    companyId:companyId,
+    $or: [{ role: "employee" }, { role: "manager" }],
+  }).select("-password -refreshToken");
 
-export { createEmployee, createManager, updateUser, resetPassword, getAll };
+  const totalUsersCount=await User.countDocuments({companyId:companyId})
+  const adminCount=await User.countDocuments({companyId:companyId,role:"admin"})
+  const managerCount = await User.countDocuments({
+    companyId: companyId,
+    role: "manager",
+  });
+  const employeeCount = await User.countDocuments({
+    companyId: companyId,
+    role: "employee",
+  });
+
+  res.json(new ApiResponse(200, {users,totalUsersCount,adminCount,managerCount,employeeCount}, "all users"));
+});
+
+export {
+  createEmployee,
+  createManager,
+  updateUser,
+  resetPassword,
+  getAdminAnalytics,
+};

@@ -5,7 +5,7 @@ import {
   createManager,
   updateUser,
   resetPassword,
-  getAll,
+  getAdminAnalytics
 } from "../controllers/admin.controller.js";
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -15,7 +15,9 @@ const router = Router();
 router.use(verifyJWT);
 router.use(authorizeRole("admin"))
 
-router.get("/",getAll)
+router.get("/analytics",getAdminAnalytics)
+
+
 router.post("/employee", createEmployee);
 router.post("/manager", createManager);
 router.put("/update/:id",updateUser)
