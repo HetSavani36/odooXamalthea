@@ -2,7 +2,9 @@ import mongoose, { Schema } from "mongoose";
 
 export const ExpenseStatus = Object.freeze({
   DRAFT: "Draft",
-  SUBMITTED: "Submitted",
+  SUBMITTED: "Submitted", // Used for client-side flag // <<< THESE TWO WERE MISSING FROM YOUR EXPORTED ENUM >>>
+  AWAITING_ADMIN_REVIEW: "Awaiting Admin Review",
+  AWAITING_APPROVAL: "Awaiting Approval", // <<< ------------------------------------------- >>>
   PENDING: "Pending",
   APPROVED: "Approved",
   REJECTED: "Rejected",

@@ -1,7 +1,6 @@
 import express from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
-import "./utils/cronJobs.js"
 import dotenv from "dotenv"
 // import "./seed.js"
 

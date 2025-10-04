@@ -2,9 +2,6 @@ import { User } from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import crypto from "crypto"
-import { Otp } from "../models/otp.model.js";
-import { sendEmail } from "../utils/email.js";
 import { Company } from "../models/company.model.js";
 import { getCurrencyByCountry } from "../utils/currencyHelper.js";
 
