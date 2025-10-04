@@ -25,10 +25,12 @@ app.use(cookieParser())
 import authRouter from "./routes/auth.route.js";
 import userRouter from "./routes/user.route.js";
 import adminRouter from "./routes/admin.route.js";
+import expenseRouter from "./routes/expense.route.js";
 
 app.use("/api/auth",authRouter)
 app.use("/api/users", userRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/expenses", expenseRouter);
 
 
 app.use("/",(req,res)=>{

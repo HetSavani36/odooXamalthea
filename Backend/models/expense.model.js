@@ -1,7 +1,6 @@
-const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
+import mongoose, { Schema } from "mongoose";
 
-const ExpenseStatus = Object.freeze({
+export const ExpenseStatus = Object.freeze({
   DRAFT: "Draft",
   SUBMITTED: "Submitted",
   PENDING: "Pending",
@@ -9,7 +8,7 @@ const ExpenseStatus = Object.freeze({
   REJECTED: "Rejected",
 });
 
-const ExpenseSchema = new Schema(
+const expenseSchema = new Schema(
   {
     employee: {
       type: mongoose.Schema.Types.ObjectId,
@@ -24,6 +23,12 @@ const ExpenseSchema = new Schema(
     date: {
       type: Date,
       required: [true, "Date is required."],
+      validate: {
+        validator: function (v) {
+          return v <= Date.now();
+        },
+        message: "Expense date cannot be in the future.",
+      },
     },
     category: {
       type: String,
@@ -63,4 +68,4 @@ const ExpenseSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model("Expense", ExpenseSchema);
+export const Expense = mongoose.model("Expense", expenseSchema);
