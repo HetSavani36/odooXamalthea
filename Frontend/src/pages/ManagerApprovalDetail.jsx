@@ -1,18 +1,60 @@
 // Frontend/src/pages/ManagerApprovalDetail.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { convertCurrency, formatCurrency, getCompanyCurrency } from '../utils/currencyConverter';
 import { processApproval, checkAutoApproval, getNextApprover, areAllApprovalsComplete } from '../utils/approvalRuleEngine';
 
 const ManagerApprovalDetail = () => {
     const { expenseId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const companyCurrency = getCompanyCurrency();
     const [currentApprover] = useState('Manager'); // In real app, get from logged-in user
+    
+    // Get read-only status from navigation state
+    const isReadOnly = location.state?.isReadOnly || false;
+    const fromTab = location.state?.fromTab || 'waitingApproval';
 
     // Load expense from localStorage or use mock data
     const loadExpenseData = () => {
+        // If read-only mode and expense passed in state, use it
+        if (isReadOnly && location.state?.expense) {
+            const foundExpense = location.state.expense;
+            const expenseCurrency = foundExpense.currency || 'INR';
+            const expenseAmount = parseFloat(foundExpense.amount || foundExpense.totalAmount) || 0;
+            const convertedAmt = convertCurrency(expenseAmount, expenseCurrency, companyCurrency);
+            
+            return {
+                id: foundExpense.id,
+                employee: {
+                    name: foundExpense.employee || foundExpense.paidBy || 'Unknown',
+                    email: 'employee@company.com',
+                    department: 'N/A',
+                },
+                submittedDate: foundExpense.date || foundExpense.submittedDate || new Date().toISOString().split('T')[0],
+                totalAmount: expenseAmount,
+                currency: expenseCurrency,
+                convertedAmount: convertedAmt,
+                companyCurrency: companyCurrency,
+                status: foundExpense.status || 'Approved',
+                approvalHistory: foundExpense.approvalHistory || [],
+                approvalWorkflow: foundExpense.approvalWorkflow || null,
+                items: [
+                    {
+                        id: 1,
+                        date: foundExpense.date || new Date().toISOString().split('T')[0],
+                        category: foundExpense.category || 'Other',
+                        description: foundExpense.description || 'No description',
+                        amount: expenseAmount,
+                        currency: expenseCurrency,
+                        convertedAmount: convertedAmt,
+                        receipt: foundExpense.receipt || null,
+                    }
+                ],
+            };
+        }
+        
         // Try to load from manager's waiting approval list
         const managerWaiting = JSON.parse(localStorage.getItem('managerWaitingApproval')) || [];
         const foundExpense = managerWaiting.find(exp => exp.id == expenseId);
@@ -112,11 +154,21 @@ const ManagerApprovalDetail = () => {
     // Initialize item statuses when expense detail loads
     useEffect(() => {
         const initialStatuses = expenseDetail.items.reduce((acc, item) => {
-            acc[item.id] = { status: 'pending', reason: '' };
+            // If in read-only mode (approved/rejected), set status to match expense status
+            if (isReadOnly) {
+                const expenseStatus = expenseDetail.status.toLowerCase();
+                acc[item.id] = { 
+                    status: expenseStatus === 'approved' ? 'approved' : expenseStatus === 'rejected' ? 'rejected' : 'pending', 
+                    reason: item.rejectionReason || '' 
+                };
+            } else {
+                // For review mode, start with pending
+                acc[item.id] = { status: 'pending', reason: '' };
+            }
             return acc;
         }, {});
         setItemStatuses(initialStatuses);
-    }, [expenseDetail]);
+    }, [expenseDetail, isReadOnly]);
 
     const handleApproveItem = (itemId) => {
         setItemStatuses(prev => ({
@@ -128,10 +180,10 @@ const ManagerApprovalDetail = () => {
     };
 
     const handleRejectClick = (itemId) => {
-        // Just mark as rejected to show the reason field
+        // Mark as 'rejecting' to show the reason field, not fully rejected yet
         setItemStatuses(prev => ({
             ...prev,
-            [itemId]: { status: 'rejected', reason: '' }
+            [itemId]: { status: 'rejecting', reason: '' }
         }));
     };
 
@@ -142,14 +194,37 @@ const ManagerApprovalDetail = () => {
         }));
     };
 
+    const handleSubmitRejection = (itemId) => {
+        const currentItem = itemStatuses[itemId];
+        if (!currentItem.reason || !currentItem.reason.trim()) {
+            alert('Please provide a reason for rejection');
+            return;
+        }
+        
+        // Now actually mark as rejected
+        setItemStatuses(prev => ({
+            ...prev,
+            [itemId]: { status: 'rejected', reason: currentItem.reason }
+        }));
+        console.log('Rejected item:', itemId, 'with reason:', currentItem.reason);
+    };
+
+    const handleCancelRejection = (itemId) => {
+        // Cancel rejection and go back to pending
+        setItemStatuses(prev => ({
+            ...prev,
+            [itemId]: { status: 'pending', reason: '' }
+        }));
+    };
+
     const handleSubmitDecisions = () => {
         // Check if all items have been reviewed
         const allReviewed = Object.values(itemStatuses).every(
-            item => item.status !== 'pending'
+            item => item.status !== 'pending' && item.status !== 'rejecting'
         );
         
         if (!allReviewed) {
-            alert('Please review all expense items before submitting');
+            alert('Please review all expense items before submitting. Some items are still pending or need rejection confirmation.');
             return;
         }
 
@@ -174,9 +249,10 @@ const ManagerApprovalDetail = () => {
             .map(([id, item]) => item.reason)
             .join('; ');
 
-        // Move expense from Waiting Approval to Reviewed in manager's localStorage
+        // Move expense from Waiting Approval to Approved/Rejected in manager's localStorage
         const waitingApproval = JSON.parse(localStorage.getItem('managerWaitingApproval')) || [];
-        const reviewed = JSON.parse(localStorage.getItem('managerReviewed')) || [];
+        const approved = JSON.parse(localStorage.getItem('managerApproved')) || [];
+        const rejected = JSON.parse(localStorage.getItem('managerRejected')) || [];
         
         // Find the current expense in waiting approval
         const expenseIndex = waitingApproval.findIndex(exp => exp.id == expenseId);
@@ -231,12 +307,25 @@ const ManagerApprovalDetail = () => {
             updatedExpense.reviewedDate = new Date().toISOString().split('T')[0];
             updatedExpense.itemStatuses = itemStatuses;
             
-            // Add to reviewed list
-            reviewed.push(updatedExpense);
+            // Route to appropriate list based on final status
+            if (updatedExpense.status === 'approved') {
+                // Add to approved list
+                approved.push(updatedExpense);
+                localStorage.setItem('managerApproved', JSON.stringify(approved));
+                console.log('✅ Moved to Approved list');
+            } else if (updatedExpense.status === 'rejected') {
+                // Add to rejected list
+                rejected.push(updatedExpense);
+                localStorage.setItem('managerRejected', JSON.stringify(rejected));
+                console.log('❌ Moved to Rejected list');
+            } else {
+                // Still pending (needs more approvals) - keep in waiting
+                waitingApproval.push(updatedExpense);
+                console.log('⏳ Kept in Waiting Approval (pending more approvals)');
+            }
             
             // Save back to localStorage
             localStorage.setItem('managerWaitingApproval', JSON.stringify(waitingApproval));
-            localStorage.setItem('managerReviewed', JSON.stringify(reviewed));
             
             console.log('📋 Approval processed:', updatedExpense);
         }
@@ -287,11 +376,25 @@ const ManagerApprovalDetail = () => {
     return (
         <div style={styles.container}>
             <div style={styles.header}>
-                <h2>Expense Approval Review</h2>
+                <h2>{isReadOnly ? 'Expense Details (Read Only)' : 'Expense Approval Review'}</h2>
                 <button onClick={() => navigate(-1)} style={styles.backButton}>
                     ← Back to Dashboard
                 </button>
             </div>
+            
+            {isReadOnly && (
+                <div style={{
+                    padding: '16px',
+                    backgroundColor: '#e3f2fd',
+                    borderLeft: '4px solid #2196f3',
+                    borderRadius: '4px',
+                    marginBottom: '20px',
+                    fontSize: '14px',
+                    color: '#1976d2'
+                }}>
+                    ℹ️ This expense has already been {expenseDetail.status.toLowerCase()}. View only - no edits allowed.
+                </div>
+            )}
 
             {/* Employee Info Section */}
             <div style={styles.section}>
@@ -330,8 +433,22 @@ const ManagerApprovalDetail = () => {
                     )}
                     <div style={styles.summaryItem}>
                         <span>Status:</span>
-                        <strong style={{ color: '#ff9800' }}>{expenseDetail.status}</strong>
+                        <strong style={{ 
+                            color: expenseDetail.status === 'Approved' || expenseDetail.status === 'approved' 
+                                ? '#10b981' 
+                                : expenseDetail.status === 'Rejected' || expenseDetail.status === 'rejected'
+                                ? '#ef4444'
+                                : '#f59e0b'
+                        }}>
+                            {expenseDetail.status}
+                        </strong>
                     </div>
+                    {isReadOnly && expenseDetail.reviewedDate && (
+                        <div style={styles.summaryItem}>
+                            <span>Reviewed On:</span>
+                            <strong>{expenseDetail.reviewedDate}</strong>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -429,10 +546,12 @@ const ManagerApprovalDetail = () => {
                                     backgroundColor: 
                                         itemStatuses[item.id]?.status === 'approved' ? '#28a745' :
                                         itemStatuses[item.id]?.status === 'rejected' ? '#dc3545' :
+                                        itemStatuses[item.id]?.status === 'rejecting' ? '#ff6b6b' :
                                         '#ffc107'
                                 }}>
                                     {itemStatuses[item.id]?.status === 'approved' ? 'Approved' :
                                      itemStatuses[item.id]?.status === 'rejected' ? 'Rejected' :
+                                     itemStatuses[item.id]?.status === 'rejecting' ? 'Rejecting...' :
                                      'Pending Review'}
                                 </span>
                             </div>
@@ -464,8 +583,8 @@ const ManagerApprovalDetail = () => {
                                 </div>
                             </div>
 
-                            {/* Rejection Reason Field - Only show when item is rejected */}
-                            {itemStatuses[item.id]?.status === 'rejected' && (
+                            {/* Rejection Reason Field - Show when item is being rejected (and not read-only) */}
+                            {!isReadOnly && (itemStatuses[item.id]?.status === 'rejecting' || itemStatuses[item.id]?.status === 'rejected') && (
                                 <div style={styles.reasonSection}>
                                     <label style={styles.reasonLabel}>
                                         Rejection Reason <span style={{ color: 'red' }}>*</span>:
@@ -475,12 +594,31 @@ const ManagerApprovalDetail = () => {
                                         onChange={(e) => handleReasonChange(item.id, e.target.value)}
                                         placeholder="Enter reason for rejection..."
                                         style={styles.reasonTextarea}
+                                        disabled={itemStatuses[item.id]?.status === 'rejected'}
                                     />
+                                    
+                                    {/* Submit/Cancel buttons for rejection - Only show when rejecting */}
+                                    {itemStatuses[item.id]?.status === 'rejecting' && (
+                                        <div style={styles.rejectionActions}>
+                                            <button 
+                                                onClick={() => handleCancelRejection(item.id)}
+                                                style={styles.cancelRejectionButton}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button 
+                                                onClick={() => handleSubmitRejection(item.id)}
+                                                style={styles.submitRejectionButton}
+                                            >
+                                                Submit Rejection
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
-                            {/* Action Buttons - Only show for pending items */}
-                            {itemStatuses[item.id]?.status === 'pending' && (
+                            {/* Action Buttons - Only show for pending items and when not read-only */}
+                            {!isReadOnly && itemStatuses[item.id]?.status === 'pending' && (
                                 <div style={styles.itemActions}>
                                     <button 
                                         onClick={() => handleRejectClick(item.id)}
@@ -509,35 +647,37 @@ const ManagerApprovalDetail = () => {
                 </div>
             </div>
 
-            {/* Submit Review Section */}
-            <div style={styles.section}>
-                <h3>Submit Final Decision</h3>
-                <div style={styles.actionBox}>
-                    <p style={styles.reviewSummary}>
-                        Review Status: {' '}
-                        <strong style={{ color: '#28a745' }}>
-                            {Object.values(itemStatuses).filter(i => i.status === 'approved').length} Approved
-                        </strong>
-                        {', '}
-                        <strong style={{ color: '#dc3545' }}>
-                            {Object.values(itemStatuses).filter(i => i.status === 'rejected').length} Rejected
-                        </strong>
-                        {', '}
-                        <strong style={{ color: '#ffc107' }}>
-                            {Object.values(itemStatuses).filter(i => i.status === 'pending').length} Pending
-                        </strong>
-                    </p>
+            {/* Submit Review Section - Only show when not read-only */}
+            {!isReadOnly && (
+                <div style={styles.section}>
+                    <h3>Submit Final Decision</h3>
+                    <div style={styles.actionBox}>
+                        <p style={styles.reviewSummary}>
+                            Review Status: {' '}
+                            <strong style={{ color: '#28a745' }}>
+                                {Object.values(itemStatuses).filter(i => i.status === 'approved').length} Approved
+                            </strong>
+                            {', '}
+                            <strong style={{ color: '#dc3545' }}>
+                                {Object.values(itemStatuses).filter(i => i.status === 'rejected').length} Rejected
+                            </strong>
+                            {', '}
+                            <strong style={{ color: '#ffc107' }}>
+                                {Object.values(itemStatuses).filter(i => i.status === 'pending').length} Pending
+                            </strong>
+                        </p>
 
-                    <div style={styles.buttonContainer}>
-                        <button onClick={() => navigate(-1)} style={styles.cancelButton}>
-                            Cancel
-                        </button>
-                        <button onClick={handleSubmitDecisions} style={styles.submitButton}>
-                            Submit Review
-                        </button>
+                        <div style={styles.buttonContainer}>
+                            <button onClick={() => navigate(-1)} style={styles.cancelButton}>
+                                Cancel
+                            </button>
+                            <button onClick={handleSubmitDecisions} style={styles.submitButton}>
+                                Submit Review
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -747,6 +887,32 @@ const styles = {
     rejectItemButton: {
         padding: '10px 24px',
         backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+    },
+    rejectionActions: {
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'flex-end',
+        marginTop: '10px',
+    },
+    submitRejectionButton: {
+        padding: '10px 24px',
+        backgroundColor: '#dc3545',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '600',
+    },
+    cancelRejectionButton: {
+        padding: '10px 24px',
+        backgroundColor: '#6c757d',
         color: 'white',
         border: 'none',
         borderRadius: '4px',

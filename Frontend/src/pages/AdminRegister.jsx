@@ -193,7 +193,7 @@ const AdminRegister = () => {
                     </div>
                     
                     <button type="submit" style={styles.button}>
-                        Register Admin & Company
+                        Register Company
                     </button>
                 </form>
                 

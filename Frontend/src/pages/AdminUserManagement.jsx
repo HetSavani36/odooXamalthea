@@ -1,22 +1,26 @@
 // Frontend/src/pages/AdminUserManagement.jsx
 import React, { useState } from 'react';
+import { COUNTRY_CURRENCY_MAP } from '../utils/currencyConverter';
 
 // Mock Data for the Users table
 const mockUsers = [
-    { id: 1, name: 'Alice Johnson', email: 'alice@corp.com', role: 'Manager', manager: 'N/A' },
-    { id: 2, name: 'Bob Smith', email: 'bob@corp.com', role: 'Employee', manager: 'Alice Johnson' },
-    { id: 3, name: 'Charlie Dean', email: 'charlie@corp.com', role: 'Employee', manager: 'Alice Johnson' },
-    { id: 4, name: 'Dana Lee', email: 'dana@corp.com', role: 'Admin', manager: 'N/A' },
+    { id: 1, name: 'Alice Johnson', email: 'alice@corp.com', role: 'Manager', manager: 'N/A', country: 'United States' },
+    { id: 2, name: 'Bob Smith', email: 'bob@corp.com', role: 'Employee', manager: 'Alice Johnson', country: 'United States' },
+    { id: 3, name: 'Charlie Dean', email: 'charlie@corp.com', role: 'Employee', manager: 'Alice Johnson', country: 'United Kingdom' },
+    { id: 4, name: 'Dana Lee', email: 'dana@corp.com', role: 'Admin', manager: 'N/A', country: 'Canada' },
 ];
 
 const mockManagers = ['Alice Johnson', 'Dana Lee']; 
+
+// Get list of countries from currency mapping
+const COUNTRIES = Object.keys(COUNTRY_CURRENCY_MAP);
 
 const AdminUserManagement = () => {
     const [users, setUsers] = useState(mockUsers);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({ 
-        name: '', email: '', role: 'Employee', manager: 'N/A' 
+        name: '', email: '', role: 'Employee', manager: 'N/A', country: 'United States' 
     });
 
     const openEditModal = (user) => {
@@ -83,7 +87,7 @@ const AdminUserManagement = () => {
                     style={styles.addButton} 
                     onClick={() => { 
                         setEditingUser(null); 
-                        setFormData({ name: '', email: '', role: 'Employee', manager: 'N/A' }); 
+                        setFormData({ name: '', email: '', role: 'Employee', manager: 'N/A', country: 'United States' }); 
                         setIsModalOpen(true); 
                     }}
                 >
@@ -119,6 +123,7 @@ const AdminUserManagement = () => {
                             <th style={styles.th}>ID</th>
                             <th style={styles.th}>Name</th>
                             <th style={styles.th}>Email</th>
+                            <th style={styles.th}>Country</th>
                             <th style={styles.th}>Role</th>
                             <th style={styles.th}>Manager</th>
                             <th style={styles.th}>Actions</th>
@@ -130,6 +135,7 @@ const AdminUserManagement = () => {
                                 <td style={styles.td}>{user.id}</td>
                                 <td style={styles.td}>{user.name}</td>
                                 <td style={styles.td}>{user.email}</td>
+                                <td style={styles.td}>{user.country || 'N/A'}</td>
                                 <td style={styles.td}>
                                     <span style={{
                                         ...styles.roleBadge,
@@ -206,6 +212,21 @@ const AdminUserManagement = () => {
                                     placeholder="user@company.com"
                                     required 
                                 />
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Country</label>
+                                <select 
+                                    style={styles.input} 
+                                    name="country" 
+                                    value={formData.country} 
+                                    onChange={handleFormChange}
+                                    required
+                                >
+                                    {COUNTRIES.map(country => (
+                                        <option key={country} value={country}>{country}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div style={styles.formGroup}>
