@@ -9,10 +9,21 @@ dotenv.config({
     path: './.env'
 })
 
+// More permissive CORS configuration
 app.use(cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true
-}))
+    origin: true, // Allow all origins for now
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with'],
+    preflightContinue: false,
+    optionsSuccessStatus: 200
+}));
+
+// Add logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path} from ${req.get('origin') || 'no-origin'}`);
+    next();
+});
 
 
 app.use(express.json({limit: "16kb"}))
