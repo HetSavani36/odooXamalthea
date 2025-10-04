@@ -1,10 +1,8 @@
 import Expense, { ExpenseStatus } from "../models/expense.model.js";
-import { User } from "../models/user.model.js";
 import { Company } from "../models/company.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import mongoose from "mongoose";
 
 const getCompanyCurrencyCode = async (companyId) => {
   if (!companyId) {
@@ -37,7 +35,7 @@ const getEmployeeAnalytics = asyncHandler(async (req, res) => {
 
   const rawStats = await Expense.aggregate(pipeline);
 
-  const finalStats = {
+  let finalStats = {
     draft: 0,
     verifyApproval: 0,
     approved: 0,
