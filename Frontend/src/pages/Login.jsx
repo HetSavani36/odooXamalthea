@@ -100,7 +100,20 @@ const Login = () => {
             Forgot password?
           </a>
 
-          <button style={styles.button} type="submit">
+          <button 
+            style={styles.button} 
+            type="submit"
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#5568d3';
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#667eea';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.3)';
+            }}
+          >
             Sign In
           </button>
 
@@ -114,6 +127,18 @@ const Login = () => {
             type="button" 
             onClick={handleSignup} 
             style={styles.signupButton}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#667eea';
+              e.target.style.color = 'white';
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = '#667eea';
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = 'none';
+            }}
           >
             Create New Account
           </button>
@@ -216,8 +241,9 @@ const styles = {
     fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.3s ease',
     boxShadow: '0 2px 4px rgba(102, 126, 234, 0.3)',
+    transform: 'translateY(0)',
   },
   divider: {
     display: 'flex',
@@ -244,7 +270,8 @@ const styles = {
     fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s',
+    transition: 'all 0.3s ease',
+    transform: 'translateY(0)',
   },
 };
 

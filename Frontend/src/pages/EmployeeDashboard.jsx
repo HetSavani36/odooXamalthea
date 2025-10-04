@@ -109,7 +109,20 @@ const EmployeeDashboard = () => {
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                 }}>
                     <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '600', color: '#1a1a1a' }}>Employee Dashboard</h1>
-                    <button onClick={handleLogout} style={logoutButtonStyle}>
+                    <button 
+                        onClick={handleLogout} 
+                        style={logoutButtonStyle}
+                        onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#dc2626';
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = '#ef4444';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    >
                         Logout
                     </button>
                 </div>
@@ -169,6 +182,16 @@ const EmployeeDashboard = () => {
                     <button 
                         onClick={() => navigate('/employee/new-expense')}
                         style={newExpenseButtonStyle}
+                        onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#5568d3';
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = '#667eea';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = 'none';
+                        }}
                     >
                         + New Expense
                     </button>
@@ -182,6 +205,16 @@ const EmployeeDashboard = () => {
                         <button 
                             onClick={() => navigate('/employee/new-expense')}
                             style={newExpenseButtonStyle}
+                            onMouseEnter={(e) => {
+                                e.target.style.backgroundColor = '#5568d3';
+                                e.target.style.transform = 'translateY(-2px)';
+                                e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.target.style.backgroundColor = '#667eea';
+                                e.target.style.transform = 'translateY(0)';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         >
                             + Create Expense
                         </button>
@@ -216,6 +249,16 @@ const EmployeeDashboard = () => {
                                             <button 
                                                 onClick={() => handleEdit(exp)} 
                                                 style={editButtonStyle}
+                                                onMouseEnter={(e) => {
+                                                    e.target.style.backgroundColor = '#059669';
+                                                    e.target.style.transform = 'translateY(-1px)';
+                                                    e.target.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.3)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.target.style.backgroundColor = '#10b981';
+                                                    e.target.style.transform = 'translateY(0)';
+                                                    e.target.style.boxShadow = 'none';
+                                                }}
                                             >
                                                 Edit
                                             </button>
@@ -223,6 +266,16 @@ const EmployeeDashboard = () => {
                                             <button 
                                                 onClick={() => setSelectedExpense(exp)} 
                                                 style={buttonStyle}
+                                                onMouseEnter={(e) => {
+                                                    e.target.style.backgroundColor = '#5568d3';
+                                                    e.target.style.transform = 'translateY(-1px)';
+                                                    e.target.style.boxShadow = '0 2px 6px rgba(102, 126, 234, 0.3)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.target.style.backgroundColor = '#667eea';
+                                                    e.target.style.transform = 'translateY(0)';
+                                                    e.target.style.boxShadow = 'none';
+                                                }}
                                             >
                                                 View Details
                                             </button>
@@ -318,7 +371,8 @@ const buttonStyle = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.3s ease',
+    transform: 'translateY(0)',
 };
 const editButtonStyle = { 
     padding: '8px 16px', 
@@ -329,7 +383,8 @@ const editButtonStyle = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.3s ease',
+    transform: 'translateY(0)',
 };
 const newExpenseButtonStyle = { 
     padding: '12px 24px', 
@@ -340,7 +395,8 @@ const newExpenseButtonStyle = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '600',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.3s ease',
+    transform: 'translateY(0)',
 };
 const logoutButtonStyle = { 
     padding: '10px 20px', 
@@ -351,7 +407,8 @@ const logoutButtonStyle = {
     cursor: 'pointer',
     fontSize: '14px',
     fontWeight: '500',
-    transition: 'background-color 0.2s'
+    transition: 'all 0.3s ease',
+    transform: 'translateY(0)',
 };
 const detailBoxStyle = { 
     marginTop: '24px', 

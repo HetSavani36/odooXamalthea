@@ -71,7 +71,18 @@ const AdminMainDashboard = () => {
                     <h1 style={styles.title}>Admin Control Room</h1>
                     <p style={styles.subtitle}>Manage your expense management system</p>
                 </div>
-                <button onClick={handleLogout} style={styles.logoutButton}>
+                <button 
+                    onClick={handleLogout} 
+                    style={styles.logoutButton}
+                    onMouseEnter={(e) => {
+                        e.target.style.backgroundColor = '#c82333';
+                        e.target.style.transform = 'translateY(-2px) scale(1.02)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.backgroundColor = '#dc3545';
+                        e.target.style.transform = 'translateY(0) scale(1)';
+                    }}
+                >
                     🚪 Logout
                 </button>
             </div>
@@ -124,6 +135,14 @@ const AdminMainDashboard = () => {
                             key={index}
                             style={{ ...styles.card, borderLeft: `5px solid ${option.color}` }}
                             onClick={() => navigate(option.path)}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-5px)';
+                                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)';
+                                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                            }}
                         >
                             <div style={styles.icon}>{option.icon}</div>
                             <h3 style={styles.cardTitle}>{option.title}</h3>
@@ -169,7 +188,8 @@ const styles = {
         fontSize: '16px',
         fontWeight: '600',
         cursor: 'pointer',
-        transition: 'background-color 0.2s, transform 0.1s',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0) scale(1)',
         boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
         height: 'fit-content',
     },
@@ -248,7 +268,8 @@ const styles = {
         borderRadius: '10px',
         boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
         cursor: 'pointer',
-        transition: 'transform 0.2s, box-shadow 0.2s',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0)',
     },
     icon: {
         fontSize: '48px',

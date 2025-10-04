@@ -254,10 +254,36 @@ const ManagerDashboard = () => {
                     <p style={{ margin: '8px 0 0 0', color: '#6b7280' }}>Review and approve expense submissions</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                    <button onClick={handleResetDemoData} style={styles.resetButton}>
+                    <button 
+                        onClick={handleResetDemoData} 
+                        style={styles.resetButton}
+                        onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#5568d3';
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 4px 8px rgba(102, 126, 234, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = '#667eea';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 2px 4px rgba(102, 126, 234, 0.2)';
+                        }}
+                    >
                         🔄 Reset Demo Data
                     </button>
-                    <button onClick={handleLogout} style={styles.logoutButton}>
+                    <button 
+                        onClick={handleLogout} 
+                        style={styles.logoutButton}
+                        onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#dc2626';
+                            e.target.style.transform = 'translateY(-2px)';
+                            e.target.style.boxShadow = '0 4px 8px rgba(239, 68, 68, 0.3)';
+                        }}
+                        onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = '#ef4444';
+                            e.target.style.transform = 'translateY(0)';
+                            e.target.style.boxShadow = '0 2px 4px rgba(239, 68, 68, 0.2)';
+                        }}
+                    >
                         Logout
                     </button>
                 </div>
@@ -341,6 +367,16 @@ const ManagerDashboard = () => {
                                         <button 
                                             onClick={() => handleViewDetail(expense.id, expense)}
                                             style={styles.actionButton}
+                                            onMouseEnter={(e) => {
+                                                e.target.style.backgroundColor = '#5568d3';
+                                                e.target.style.transform = 'translateY(-1px)';
+                                                e.target.style.boxShadow = '0 2px 6px rgba(102, 126, 234, 0.3)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.target.style.backgroundColor = '#667eea';
+                                                e.target.style.transform = 'translateY(0)';
+                                                e.target.style.boxShadow = 'none';
+                                            }}
                                         >
                                             {activeTab === 'waitingApproval' ? 'Review' : 'View Details'}
                                         </button>
@@ -380,7 +416,9 @@ const styles = {
         cursor: 'pointer',
         fontSize: '14px',
         fontWeight: '500',
-        transition: 'background-color 0.2s',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0)',
+        boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
     },
     resetButton: {
         padding: '10px 20px',
@@ -391,7 +429,9 @@ const styles = {
         cursor: 'pointer',
         fontSize: '14px',
         fontWeight: '500',
-        transition: 'background-color 0.2s',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0)',
+        boxShadow: '0 2px 4px rgba(102, 126, 234, 0.2)',
     },
     tabContainer: {
         display: 'flex',
@@ -470,7 +510,8 @@ const styles = {
         cursor: 'pointer',
         fontSize: '14px',
         fontWeight: '500',
-        transition: 'background-color 0.2s',
+        transition: 'all 0.3s ease',
+        transform: 'translateY(0)',
     },
     emptyState: {
         textAlign: 'center',
