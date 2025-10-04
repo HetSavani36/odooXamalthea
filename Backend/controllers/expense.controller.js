@@ -1,5 +1,5 @@
 import Expense, { ExpenseStatus } from "../models/expense.model.js";
-import User from "../models/user.model.js"; // Assuming your User model path
+import {User} from "../models/user.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js"; // Assuming your asyncHandler utility
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";

@@ -18,4 +18,4 @@ router.route("/").get(getExpenses).post(createExpense);
 router.route("/:id").get(getExpense).put(updateExpense).delete(deleteExpense);
 router.route("/:id/submit").put(submitExpense);
 
-export default router; 
+export default router;
