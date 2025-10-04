@@ -14,6 +14,7 @@ import {
   rejectExpense,
   
   assignWorkflow,
+  getAdminAnalytics,
 } from "../controllers/expense.controller.js"; 
 
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -41,4 +42,5 @@ router.route("/approvals/:id/reject").put(authorizeRole("manager"),rejectExpense
 
 router.route("/admin/expenses/:id/assign-workflow").post(authorizeRole("admin"),assignWorkflow);
 
+router.get("/admin/analytics", authorizeRole("admin"),getAdminAnalytics);
 export default router;
