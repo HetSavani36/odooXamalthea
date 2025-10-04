@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { convertCurrency, formatCurrency, getCompanyCurrency } from '../utils/currencyConverter';
 
 // Mock data: Expenses for different tabs
 const initialWaitingApproval = [
@@ -16,6 +17,7 @@ const initialApprovedExpenses = [
 
 const ManagerDashboard = () => {
     const navigate = useNavigate();
+    const companyCurrency = getCompanyCurrency();
     const [activeTab, setActiveTab] = useState('waitingApproval'); // 'waitingApproval', 'approved', 'reviewed'
     const [waitingApproval, setWaitingApproval] = useState([]);
     const [approvedExpenses, setApprovedExpenses] = useState([]);
@@ -84,6 +86,12 @@ const ManagerDashboard = () => {
         }
     };
 
+    const handleLogout = () => {
+        // Clear any session data if needed
+        localStorage.removeItem('currentUser'); // Optional: if you're storing current user
+        navigate('/login');
+    };
+
     return (
         <div style={styles.container}>
             <div style={styles.header}>
@@ -91,9 +99,14 @@ const ManagerDashboard = () => {
                     <h2>Manager's Dashboard</h2>
                     <p>Review and approve expense submissions</p>
                 </div>
-                <button onClick={loadExpenses} style={styles.refreshButton}>
-                    🔄 Refresh
-                </button>
+                <div style={styles.headerButtons}>
+                    <button onClick={loadExpenses} style={styles.refreshButton}>
+                        🔄 Refresh
+                    </button>
+                    <button onClick={handleLogout} style={styles.logoutButton}>
+                        🚪 Logout
+                    </button>
+                </div>
             </div>
 
             {/* Tab Navigation */}
@@ -147,6 +160,7 @@ const ManagerDashboard = () => {
                                 <th style={styles.th}>Employee</th>
                                 <th style={styles.th}>Amount</th>
                                 <th style={styles.th}>Currency</th>
+                                <th style={styles.th}>Amount ({companyCurrency})</th>
                                 <th style={styles.th}>Category</th>
                                 <th style={styles.th}>Date</th>
                                 <th style={styles.th}>Status</th>
@@ -154,12 +168,24 @@ const ManagerDashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {getCurrentExpenses().map(expense => (
+                            {getCurrentExpenses().map(expense => {
+                                const convertedAmount = convertCurrency(
+                                    parseFloat(expense.amount),
+                                    expense.currency,
+                                    companyCurrency
+                                );
+                                
+                                return (
                                 <tr key={expense.id} style={styles.tr}>
                                     <td style={styles.td}>{expense.id}</td>
                                     <td style={styles.td}>{expense.employee}</td>
-                                    <td style={styles.td}>{expense.amount}</td>
+                                    <td style={styles.td}>{formatCurrency(expense.amount, expense.currency)}</td>
                                     <td style={styles.td}>{expense.currency}</td>
+                                    <td style={styles.td}>
+                                        {expense.currency === companyCurrency 
+                                            ? '-' 
+                                            : formatCurrency(convertedAmount, companyCurrency)}
+                                    </td>
                                     <td style={styles.td}>{expense.category}</td>
                                     <td style={styles.td}>{expense.date}</td>
                                     <td style={styles.td}>
@@ -179,7 +205,8 @@ const ManagerDashboard = () => {
                                         </button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}
@@ -203,9 +230,24 @@ const styles = {
         borderBottom: '2px solid #333',
         paddingBottom: '15px',
     },
+    headerButtons: {
+        display: 'flex',
+        gap: '10px',
+        alignItems: 'center',
+    },
     refreshButton: {
         padding: '10px 20px',
         backgroundColor: '#007bff',
+        color: 'white',
+        border: 'none',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: '500',
+    },
+    logoutButton: {
+        padding: '10px 20px',
+        backgroundColor: '#dc3545',
         color: 'white',
         border: 'none',
         borderRadius: '4px',

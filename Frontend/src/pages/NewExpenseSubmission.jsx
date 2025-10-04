@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { createApprovalWorkflow } from '../utils/approvalRuleEngine';
+import { convertCurrency, getCompanyCurrency } from '../utils/currencyConverter';
 
 const NewExpenseSubmission = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const editingExpense = location.state?.expense; // Get expense data if editing
+    const companyCurrency = getCompanyCurrency();
     
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [expenseData, setExpenseData] = useState({
@@ -15,8 +18,9 @@ const NewExpenseSubmission = () => {
         expenseDate: new Date().toISOString().substring(0, 10),
         category: '',
         paidBy: 'John Doe', // Default username
+        manager: 'Satish', // Default manager - in real app, get from user profile
         totalAmount: '',
-        currency: 'USD',
+        currency: companyCurrency,
         remarks: '',
         receipt: null,
         status: 'draft'
@@ -82,6 +86,27 @@ const NewExpenseSubmission = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         
+        // Convert amount to company currency if needed
+        const convertedAmount = convertCurrency(
+            parseFloat(expenseData.totalAmount),
+            expenseData.currency,
+            companyCurrency
+        );
+        
+        // Create approval workflow based on rules
+        const workflow = createApprovalWorkflow(
+            {
+                category: expenseData.category,
+                amount: parseFloat(expenseData.totalAmount),
+                convertedAmount: convertedAmount,
+                currency: expenseData.currency
+            },
+            expenseData.paidBy,
+            expenseData.manager
+        );
+        
+        console.log('🔍 Approval Workflow:', workflow);
+        
         // Save submitted expense to employee's localStorage
         const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
         
@@ -90,21 +115,29 @@ const NewExpenseSubmission = () => {
             id: expenseData.id || Date.now(),
             employee: expenseData.paidBy || 'John Doe', // Employee name
             amount: expenseData.totalAmount,
+            convertedAmount: convertedAmount,
+            companyCurrency: companyCurrency,
             date: expenseData.expenseDate,
             status: 'pending',
             submittedAt: new Date().toISOString(),
+            approvalWorkflow: workflow,
+            approvalHistory: [],
+            currentApprover: workflow.approvers && workflow.approvers.length > 0 
+                ? workflow.approvers[0].name 
+                : null,
             history: [
                 {
                     id: Date.now(),
                     approver: 'System',
-                    status: 'Pending Approval',
+                    status: workflow.requiresApproval ? 'Pending Approval' : 'Auto-Approved',
                     time: new Date().toLocaleString('en-GB', { 
                         hour: '2-digit', 
                         minute: '2-digit', 
                         day: 'numeric', 
                         month: 'short', 
                         year: 'numeric' 
-                    })
+                    }),
+                    message: workflow.message
                 }
             ]
         };
@@ -112,27 +145,35 @@ const NewExpenseSubmission = () => {
         expenses.push(submittedExpense);
         localStorage.setItem('expenses', JSON.stringify(expenses));
         
-        // Also add to manager's waiting approval list
-        const managerWaitingApproval = JSON.parse(localStorage.getItem('managerWaitingApproval') || '[]');
-        const managerExpense = {
-            id: submittedExpense.id,
-            employee: submittedExpense.employee,
-            amount: submittedExpense.totalAmount,
-            currency: submittedExpense.currency,
-            category: submittedExpense.category,
-            date: submittedExpense.expenseDate,
-            status: 'Waiting Approval',
-            description: submittedExpense.description,
-            remarks: submittedExpense.remarks,
-            paidBy: submittedExpense.paidBy,
-            receipt: submittedExpense.receipt
-        };
-        managerWaitingApproval.push(managerExpense);
-        localStorage.setItem('managerWaitingApproval', JSON.stringify(managerWaitingApproval));
+        // If approval required, add to manager's waiting approval list
+        if (workflow.requiresApproval && workflow.approvers && workflow.approvers.length > 0) {
+            const managerWaitingApproval = JSON.parse(localStorage.getItem('managerWaitingApproval') || '[]');
+            const managerExpense = {
+                id: submittedExpense.id,
+                employee: submittedExpense.employee,
+                amount: submittedExpense.totalAmount,
+                currency: submittedExpense.currency,
+                convertedAmount: convertedAmount,
+                companyCurrency: companyCurrency,
+                category: submittedExpense.category,
+                date: submittedExpense.expenseDate,
+                status: 'Waiting Approval',
+                description: submittedExpense.description,
+                remarks: submittedExpense.remarks,
+                paidBy: submittedExpense.paidBy,
+                receipt: submittedExpense.receipt,
+                approvalWorkflow: workflow,
+                approvalHistory: [],
+                currentApprover: workflow.approvers[0].name
+            };
+            managerWaitingApproval.push(managerExpense);
+            localStorage.setItem('managerWaitingApproval', JSON.stringify(managerWaitingApproval));
+            
+            console.log('✅ Expense submitted to Manager:', managerExpense);
+            console.log('📊 Manager Waiting Approval List:', managerWaitingApproval);
+        }
         
         console.log('✅ Expense submitted to Employee:', submittedExpense);
-        console.log('✅ Expense submitted to Manager:', managerExpense);
-        console.log('📊 Manager Waiting Approval List:', managerWaitingApproval);
         
         // Remove from drafts if it was a draft
         if (expenseData.status === 'draft') {
@@ -142,7 +183,12 @@ const NewExpenseSubmission = () => {
         }
         
         console.log('Submitting expense:', submittedExpense);
-        alert('Expense submitted successfully! Now pending approval.');
+        
+        const approvalMessage = workflow.requiresApproval 
+            ? `Expense submitted! Requires approval from: ${workflow.approvers.map(a => a.name).join(', ')}`
+            : 'Expense submitted and auto-approved!';
+            
+        alert(approvalMessage);
         
         // Redirect to employee dashboard
         navigate('/employee/dashboard');

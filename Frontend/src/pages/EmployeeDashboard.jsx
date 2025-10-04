@@ -88,8 +88,22 @@ const EmployeeDashboard = () => {
 
     const totals = calculateTotals();
 
+    const handleLogout = () => {
+        // Clear any session data if needed
+        localStorage.removeItem('currentUser'); // Optional: if you're storing current user
+        navigate('/login');
+    };
+
     return (
         <div style={dashboardStyle}>
+            {/* Header with Logout Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h1 style={{ margin: 0 }}>Employee Dashboard</h1>
+                <button onClick={handleLogout} style={logoutButtonStyle}>
+                    🚪 Logout
+                </button>
+            </div>
+
             {/* Summary Cards Section */}
             <div style={summaryCardsContainer}>
                 <div style={summaryCard}>
@@ -287,6 +301,16 @@ const editButtonStyle = {
 const newExpenseButtonStyle = { 
     padding: '10px 20px', 
     backgroundColor: '#007bff', 
+    color: 'white', 
+    border: 'none', 
+    borderRadius: '6px', 
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: '600'
+};
+const logoutButtonStyle = { 
+    padding: '10px 20px', 
+    backgroundColor: '#dc3545', 
     color: 'white', 
     border: 'none', 
     borderRadius: '6px', 

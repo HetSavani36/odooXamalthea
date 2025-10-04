@@ -1,13 +1,16 @@
 // Frontend/src/pages/ExpenseSubmissionPage.jsx
 
 import React, { useState } from 'react';
+import { convertCurrency, formatCurrency, getCompanyCurrency, getSupportedCurrencies } from '../utils/currencyConverter';
 
 const ExpenseSubmissionPage = () => {
+    const companyCurrency = getCompanyCurrency();
+    
     const [expenseData, setExpenseData] = useState({
         category: '',
         date: new Date().toISOString().substring(0, 10),
         amount: '',
-        currency: 'INR',
+        currency: companyCurrency,
         description: '',
         receipt: null,
     });
@@ -15,7 +18,7 @@ const ExpenseSubmissionPage = () => {
     const [expenseItems, setExpenseItems] = useState([]);
 
     const categories = ['Travel', 'Meals', 'Office Supplies', 'Software', 'Entertainment', 'Other'];
-    const currencies = ['INR', 'USD', 'EUR', 'GBP'];
+    const currencies = getSupportedCurrencies();
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -28,13 +31,25 @@ const ExpenseSubmissionPage = () => {
 
     const addExpenseItem = () => {
         if (expenseData.amount && expenseData.category) {
-            setExpenseItems([...expenseItems, { ...expenseData, id: Date.now() }]);
+            const convertedAmount = convertCurrency(
+                expenseData.amount, 
+                expenseData.currency, 
+                companyCurrency
+            );
+            
+            setExpenseItems([...expenseItems, { 
+                ...expenseData, 
+                id: Date.now(),
+                convertedAmount,
+                companyCurrency
+            }]);
+            
             // Reset form
             setExpenseData({
                 category: '',
                 date: new Date().toISOString().substring(0, 10),
                 amount: '',
-                currency: 'INR',
+                currency: companyCurrency,
                 description: '',
                 receipt: null,
             });
@@ -168,6 +183,7 @@ const ExpenseSubmissionPage = () => {
                                 <th style={styles.th}>Description</th>
                                 <th style={styles.th}>Amount</th>
                                 <th style={styles.th}>Currency</th>
+                                <th style={styles.th}>Converted ({companyCurrency})</th>
                                 <th style={styles.th}>Receipt</th>
                                 <th style={styles.th}>Action</th>
                             </tr>
@@ -178,8 +194,13 @@ const ExpenseSubmissionPage = () => {
                                     <td style={styles.td}>{item.date}</td>
                                     <td style={styles.td}>{item.category}</td>
                                     <td style={styles.td}>{item.description || '-'}</td>
-                                    <td style={styles.td}>{item.amount}</td>
+                                    <td style={styles.td}>{formatCurrency(item.amount, item.currency)}</td>
                                     <td style={styles.td}>{item.currency}</td>
+                                    <td style={styles.td}>
+                                        {item.currency === companyCurrency 
+                                            ? '-' 
+                                            : formatCurrency(item.convertedAmount, companyCurrency)}
+                                    </td>
                                     <td style={styles.td}>{item.receipt ? '✓' : '-'}</td>
                                     <td style={styles.td}>
                                         <button 
@@ -195,8 +216,8 @@ const ExpenseSubmissionPage = () => {
                         <tfoot>
                             <tr>
                                 <td colSpan="3" style={{ ...styles.td, textAlign: 'right', fontWeight: 'bold' }}>Total:</td>
-                                <td style={{ ...styles.td, fontWeight: 'bold' }}>{calculateTotal().toFixed(2)}</td>
-                                <td colSpan="3" style={styles.td}></td>
+                                <td style={{ ...styles.td, fontWeight: 'bold' }}>{formatCurrency(calculateTotal(), companyCurrency)}</td>
+                                <td colSpan="4" style={styles.td}></td>
                             </tr>
                         </tfoot>
                     </table>

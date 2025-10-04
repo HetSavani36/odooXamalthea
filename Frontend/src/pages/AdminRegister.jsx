@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { getCurrencyForCountry, setCompanyCurrency } from '../utils/currencyConverter';
 
 
 // Assuming the backend will run on this URL
@@ -73,12 +74,19 @@ const AdminRegister = () => {
 
         setMessage('Registering Company and Admin...');
 
+        // Set company currency based on selected country
+        const companyCurrency = getCurrencyForCountry(country);
+        setCompanyCurrency(companyCurrency);
+        localStorage.setItem('companyName', companyName);
+        localStorage.setItem('companyCountry', country);
+
         // **FUTURE: Replace console.log with actual API call (POST to API_URL)**
         console.log('--- Sending Registration Data to Backend ---');
+        console.log('Company Currency set to:', companyCurrency);
 
         // MOCK SUCCESS (Backend is skipped for now)
         setTimeout(() => {
-            setMessage('Registration SUCCESS! (MOCK) Token saved. Redirecting to Admin Dashboard...');
+            setMessage(`Registration SUCCESS! (MOCK) Company currency: ${companyCurrency}. Redirecting to Admin Dashboard...`);
             
             // Navigate to Admin Dashboard (Control Room) as per wireframe
             navigate('/admin/dashboard'); 

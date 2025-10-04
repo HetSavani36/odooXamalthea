@@ -2,10 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { convertCurrency, formatCurrency, getCompanyCurrency } from '../utils/currencyConverter';
+import { processApproval, checkAutoApproval, getNextApprover, areAllApprovalsComplete } from '../utils/approvalRuleEngine';
 
 const ManagerApprovalDetail = () => {
     const { expenseId } = useParams();
     const navigate = useNavigate();
+    const companyCurrency = getCompanyCurrency();
+    const [currentApprover] = useState('Manager'); // In real app, get from logged-in user
 
     // Load expense from localStorage or use mock data
     const loadExpenseData = () => {
@@ -14,6 +18,10 @@ const ManagerApprovalDetail = () => {
         const foundExpense = managerWaiting.find(exp => exp.id == expenseId);
         
         if (foundExpense) {
+            const expenseCurrency = foundExpense.currency || 'INR';
+            const expenseAmount = parseFloat(foundExpense.amount) || 0;
+            const convertedAmt = convertCurrency(expenseAmount, expenseCurrency, companyCurrency);
+            
             // If found, structure it for display
             return {
                 id: foundExpense.id,
@@ -23,10 +31,10 @@ const ManagerApprovalDetail = () => {
                     department: 'N/A',
                 },
                 submittedDate: foundExpense.date || new Date().toISOString().split('T')[0],
-                totalAmount: parseFloat(foundExpense.amount) || 0,
-                currency: foundExpense.currency || 'INR',
-                convertedAmount: parseFloat(foundExpense.amount) || 0,
-                companyCurrency: foundExpense.currency || 'INR',
+                totalAmount: expenseAmount,
+                currency: expenseCurrency,
+                convertedAmount: convertedAmt,
+                companyCurrency: companyCurrency,
                 status: foundExpense.status || 'Pending Approval',
                 items: [
                     {
@@ -34,8 +42,9 @@ const ManagerApprovalDetail = () => {
                         date: foundExpense.date || new Date().toISOString().split('T')[0],
                         category: foundExpense.category || 'Other',
                         description: foundExpense.description || 'No description',
-                        amount: parseFloat(foundExpense.amount) || 0,
-                        currency: foundExpense.currency || 'INR',
+                        amount: expenseAmount,
+                        currency: expenseCurrency,
+                        convertedAmount: convertedAmt,
                         receipt: foundExpense.receipt || null,
                     }
                 ],
@@ -43,6 +52,10 @@ const ManagerApprovalDetail = () => {
         }
         
         // Fallback to mock data if not found
+        const mockCurrency = 'INR';
+        const mockAmount = 1420.50;
+        const mockConvertedAmount = convertCurrency(mockAmount, mockCurrency, companyCurrency);
+        
         return {
             id: expenseId || 1,
             employee: {
@@ -51,10 +64,10 @@ const ManagerApprovalDetail = () => {
                 department: 'Engineering',
             },
             submittedDate: '2025-10-01',
-            totalAmount: 1420.50,
-            currency: 'INR',
-            convertedAmount: 17.05,
-            companyCurrency: 'USD',
+            totalAmount: mockAmount,
+            currency: mockCurrency,
+            convertedAmount: mockConvertedAmount,
+            companyCurrency: companyCurrency,
             status: 'Pending Approval',
             items: [
                 {
@@ -63,7 +76,8 @@ const ManagerApprovalDetail = () => {
                     category: 'Meals',
                     description: 'Team lunch with clients',
                     amount: 500,
-                    currency: 'INR',
+                    currency: mockCurrency,
+                    convertedAmount: convertCurrency(500, mockCurrency, companyCurrency),
                     receipt: 'receipt1.pdf',
                 },
                 {
@@ -72,7 +86,8 @@ const ManagerApprovalDetail = () => {
                     category: 'Travel',
                     description: 'Cab to airport',
                     amount: 420.50,
-                    currency: 'INR',
+                    currency: mockCurrency,
+                    convertedAmount: convertCurrency(420.50, mockCurrency, companyCurrency),
                     receipt: 'receipt2.pdf',
                 },
                 {
@@ -81,7 +96,8 @@ const ManagerApprovalDetail = () => {
                     category: 'Office Supplies',
                     description: 'Notebooks and pens',
                     amount: 500,
-                    currency: 'INR',
+                    currency: mockCurrency,
+                    convertedAmount: convertCurrency(500, mockCurrency, companyCurrency),
                     receipt: null,
                 },
             ],
@@ -150,7 +166,13 @@ const ManagerApprovalDetail = () => {
         // Determine overall expense status based on item statuses
         const hasRejected = Object.values(itemStatuses).some(item => item.status === 'rejected');
         const allApproved = Object.values(itemStatuses).every(item => item.status === 'approved');
-        const overallStatus = hasRejected ? 'rejected' : allApproved ? 'approved' : 'reviewed';
+        const action = hasRejected ? 'reject' : allApproved ? 'approve' : 'review';
+        
+        // Get rejection comments if rejected
+        const rejectionComments = Object.entries(itemStatuses)
+            .filter(([id, item]) => item.status === 'rejected')
+            .map(([id, item]) => item.reason)
+            .join('; ');
 
         // Move expense from Waiting Approval to Reviewed in manager's localStorage
         const waitingApproval = JSON.parse(localStorage.getItem('managerWaitingApproval')) || [];
@@ -163,18 +185,60 @@ const ManagerApprovalDetail = () => {
             // Remove from waiting approval
             const [reviewedExpense] = waitingApproval.splice(expenseIndex, 1);
             
-            // Update status to Reviewed
-            reviewedExpense.status = 'Reviewed';
-            reviewedExpense.reviewedDate = new Date().toISOString().split('T')[0];
-            reviewedExpense.itemStatuses = itemStatuses;
-            reviewedExpense.overallStatus = overallStatus;
+            // Process approval using rule engine
+            const updatedExpense = processApproval(
+                reviewedExpense,
+                currentApprover,
+                action,
+                rejectionComments || 'Items reviewed'
+            );
+            
+            // Check for auto-approval
+            const rule = reviewedExpense.approvalWorkflow?.rule;
+            if (rule && action === 'approve') {
+                const autoApproval = checkAutoApproval(rule, updatedExpense.approvalHistory);
+                
+                if (autoApproval.isAutoApproved) {
+                    console.log('🎉 AUTO-APPROVED:', autoApproval.reason);
+                    alert(`✅ AUTO-APPROVED!\n${autoApproval.reason}`);
+                    updatedExpense.status = 'approved';
+                    updatedExpense.autoApprovalReason = autoApproval.reason;
+                } else {
+                    // Check if all approvals are complete
+                    if (areAllApprovalsComplete(rule, updatedExpense.approvalHistory)) {
+                        console.log('✅ All required approvals complete');
+                        updatedExpense.status = 'approved';
+                        alert('✅ All approvals complete! Expense approved.');
+                    } else {
+                        // Get next approver
+                        const nextApprover = getNextApprover(
+                            rule, 
+                            updatedExpense.approvalHistory,
+                            reviewedExpense.employee
+                        );
+                        
+                        if (nextApprover) {
+                            console.log('⏭️ Next approver:', nextApprover.name);
+                            updatedExpense.currentApprover = nextApprover.name;
+                            updatedExpense.status = 'pending';
+                            alert(`Approved! Next approver: ${nextApprover.name}`);
+                        }
+                    }
+                }
+            }
+            
+            // Update status
+            updatedExpense.reviewedDate = new Date().toISOString().split('T')[0];
+            updatedExpense.itemStatuses = itemStatuses;
             
             // Add to reviewed list
-            reviewed.push(reviewedExpense);
+            reviewed.push(updatedExpense);
             
             // Save back to localStorage
             localStorage.setItem('managerWaitingApproval', JSON.stringify(waitingApproval));
             localStorage.setItem('managerReviewed', JSON.stringify(reviewed));
+            
+            console.log('📋 Approval processed:', updatedExpense);
         }
 
         // Update employee's expense status
@@ -182,31 +246,31 @@ const ManagerApprovalDetail = () => {
         const employeeExpenseIndex = employeeExpenses.findIndex(exp => exp.id == expenseId);
         
         if (employeeExpenseIndex !== -1) {
-            // Update the status based on review
-            employeeExpenses[employeeExpenseIndex].status = overallStatus;
-            employeeExpenses[employeeExpenseIndex].reviewedDate = new Date().toISOString().split('T')[0];
-            employeeExpenses[employeeExpenseIndex].itemStatuses = itemStatuses;
+            // Process approval for employee's copy
+            const employeeExpense = processApproval(
+                employeeExpenses[employeeExpenseIndex],
+                currentApprover,
+                action,
+                rejectionComments || 'Items reviewed'
+            );
             
-            // Add to history
-            if (!employeeExpenses[employeeExpenseIndex].history) {
-                employeeExpenses[employeeExpenseIndex].history = [];
+            // Check for auto-approval
+            const rule = employeeExpense.approvalWorkflow?.rule;
+            if (rule && action === 'approve') {
+                const autoApproval = checkAutoApproval(rule, employeeExpense.approvalHistory);
+                if (autoApproval.isAutoApproved) {
+                    employeeExpense.status = 'approved';
+                    employeeExpense.autoApprovalReason = autoApproval.reason;
+                } else if (areAllApprovalsComplete(rule, employeeExpense.approvalHistory)) {
+                    employeeExpense.status = 'approved';
+                }
             }
             
-            employeeExpenses[employeeExpenseIndex].history.push({
-                id: Date.now(),
-                approver: 'Manager',
-                status: overallStatus === 'approved' ? 'Approved' : overallStatus === 'rejected' ? 'Rejected' : 'Reviewed',
-                time: new Date().toLocaleString('en-GB', { 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    day: 'numeric', 
-                    month: 'short', 
-                    year: 'numeric' 
-                }),
-                itemStatuses: itemStatuses
-            });
+            employeeExpense.reviewedDate = new Date().toISOString().split('T')[0];
+            employeeExpense.itemStatuses = itemStatuses;
             
             // Save back to employee's expenses
+            employeeExpenses[employeeExpenseIndex] = employeeExpense;
             localStorage.setItem('expenses', JSON.stringify(employeeExpenses));
         }
 
@@ -253,19 +317,104 @@ const ManagerApprovalDetail = () => {
                 <h3>Expense Summary</h3>
                 <div style={styles.summaryBox}>
                     <div style={styles.summaryItem}>
-                        <span>Total Amount (Submitted):</span>
-                        <strong>{expenseDetail.totalAmount} {expenseDetail.currency}</strong>
+                        <span>Total Amount (Original):</span>
+                        <strong>{formatCurrency(expenseDetail.totalAmount, expenseDetail.currency)}</strong>
                     </div>
-                    <div style={styles.summaryItem}>
-                        <span>Converted Amount (Company Currency):</span>
-                        <strong>{expenseDetail.convertedAmount} {expenseDetail.companyCurrency}</strong>
-                    </div>
+                    {expenseDetail.currency !== companyCurrency && (
+                        <div style={styles.summaryItem}>
+                            <span>Converted to Company Currency ({companyCurrency}):</span>
+                            <strong style={{ color: '#007bff' }}>
+                                {formatCurrency(expenseDetail.convertedAmount, companyCurrency)}
+                            </strong>
+                        </div>
+                    )}
                     <div style={styles.summaryItem}>
                         <span>Status:</span>
                         <strong style={{ color: '#ff9800' }}>{expenseDetail.status}</strong>
                     </div>
                 </div>
             </div>
+
+            {/* Approval Workflow Section */}
+            {expenseDetail.approvalWorkflow && expenseDetail.approvalWorkflow.hasRule && (
+                <div style={styles.section}>
+                    <h3>📋 Approval Workflow</h3>
+                    <div style={styles.workflowBox}>
+                        <div style={styles.workflowInfo}>
+                            <strong>Workflow Type:</strong> {expenseDetail.approvalWorkflow.isSequential ? '🔄 Sequential' : '⚡ Parallel'}
+                        </div>
+                        <div style={styles.workflowInfo}>
+                            <strong>Required Approvers:</strong> {expenseDetail.approvalWorkflow.approvers.length}
+                        </div>
+                        
+                        {/* Approvers List */}
+                        <div style={styles.approversList}>
+                            <h4 style={{ margin: '10px 0', fontSize: '14px' }}>Approval Chain:</h4>
+                            {expenseDetail.approvalWorkflow.approvers.map((approver, index) => {
+                                const hasApproved = expenseDetail.approvalHistory?.some(
+                                    h => h.approver === approver.name && h.status === 'approved'
+                                );
+                                
+                                return (
+                                    <div key={index} style={{
+                                        ...styles.approverItem,
+                                        backgroundColor: hasApproved ? '#d4edda' : '#fff3cd'
+                                    }}>
+                                        <span style={styles.approverOrder}>{approver.order}</span>
+                                        <span style={styles.approverName}>
+                                            {approver.name} ({approver.role})
+                                            {approver.required && <span style={{ color: '#dc3545', marginLeft: '5px' }}>*</span>}
+                                        </span>
+                                        <span style={styles.approverStatus}>
+                                            {hasApproved ? '✅ Approved' : '⏳ Pending'}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        {/* Auto-Approval Conditions */}
+                        {expenseDetail.approvalWorkflow.rule && (
+                            <div style={styles.autoApprovalRules}>
+                                <h4 style={{ margin: '10px 0', fontSize: '14px', color: '#28a745' }}>
+                                    🎯 Auto-Approval Conditions:
+                                </h4>
+                                {expenseDetail.approvalWorkflow.rule.minApprovalPercentage && (
+                                    <div style={styles.ruleItem}>
+                                        📊 {expenseDetail.approvalWorkflow.rule.minApprovalPercentage}% of approvers approve
+                                    </div>
+                                )}
+                                {expenseDetail.approvalWorkflow.rule.approvers.some(a => a.required) && (
+                                    <div style={styles.ruleItem}>
+                                        ⭐ Required approver: {expenseDetail.approvalWorkflow.rule.approvers.find(a => a.required)?.name}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* Approval History */}
+                        {expenseDetail.approvalHistory && expenseDetail.approvalHistory.length > 0 && (
+                            <div style={styles.approvalHistory}>
+                                <h4 style={{ margin: '10px 0', fontSize: '14px' }}>📜 Approval History:</h4>
+                                {expenseDetail.approvalHistory.map((record, index) => (
+                                    <div key={index} style={styles.historyItem}>
+                                        <span style={{ fontWeight: 'bold' }}>{record.approver}</span>
+                                        <span style={{ 
+                                            color: record.status === 'approved' ? '#28a745' : '#dc3545',
+                                            fontWeight: 'bold'
+                                        }}>
+                                            {record.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                                        </span>
+                                        <span style={{ fontSize: '12px', color: '#666' }}>
+                                            {new Date(record.timestamp).toLocaleString()}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Expense Items Table */}
             <div style={styles.section}>
@@ -296,8 +445,16 @@ const ManagerApprovalDetail = () => {
                                     <strong>Description:</strong> {item.description}
                                 </div>
                                 <div style={styles.itemRow}>
-                                    <strong>Amount:</strong> {item.amount} {item.currency}
+                                    <strong>Amount (Original):</strong> {formatCurrency(item.amount, item.currency)}
                                 </div>
+                                {item.currency !== companyCurrency && (
+                                    <div style={styles.itemRow}>
+                                        <strong>Amount ({companyCurrency}):</strong> 
+                                        <span style={{ color: '#007bff', marginLeft: '5px' }}>
+                                            {formatCurrency(item.convertedAmount, companyCurrency)}
+                                        </span>
+                                    </div>
+                                )}
                                 <div style={styles.itemRow}>
                                     <strong>Receipt:</strong> {item.receipt ? (
                                         <a href="#" style={styles.link}>View Receipt</a>
@@ -497,6 +654,79 @@ const styles = {
         border: '1px solid #ccc',
         borderRadius: '4px',
         resize: 'vertical',
+    },
+    workflowBox: {
+        backgroundColor: '#f8f9fa',
+        padding: '20px',
+        borderRadius: '8px',
+        border: '2px solid #007bff',
+    },
+    workflowInfo: {
+        padding: '8px 0',
+        fontSize: '14px',
+    },
+    approversList: {
+        marginTop: '15px',
+        padding: '15px',
+        backgroundColor: 'white',
+        borderRadius: '6px',
+    },
+    approverItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        padding: '10px',
+        marginBottom: '8px',
+        borderRadius: '6px',
+        border: '1px solid #ddd',
+    },
+    approverOrder: {
+        width: '30px',
+        height: '30px',
+        borderRadius: '50%',
+        backgroundColor: '#007bff',
+        color: 'white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: '14px',
+    },
+    approverName: {
+        flex: 1,
+        fontWeight: '600',
+        fontSize: '14px',
+    },
+    approverStatus: {
+        fontSize: '13px',
+        fontWeight: '600',
+    },
+    autoApprovalRules: {
+        marginTop: '15px',
+        padding: '15px',
+        backgroundColor: '#d4edda',
+        borderRadius: '6px',
+        border: '1px solid #28a745',
+    },
+    ruleItem: {
+        padding: '5px 0',
+        fontSize: '13px',
+        color: '#155724',
+    },
+    approvalHistory: {
+        marginTop: '15px',
+        padding: '15px',
+        backgroundColor: 'white',
+        borderRadius: '6px',
+    },
+    historyItem: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        padding: '10px',
+        marginBottom: '8px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '4px',
+        fontSize: '13px',
     },
     itemActions: {
         display: 'flex',
