@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
@@ -86,9 +87,9 @@ const createManager = asyncHandler(async (req, res) => {
         companyId: req.user.companyId,
         managerId: req.user._id,
         currency: {
-        code: currency.code,
-        name: currency.name,
-        symbol: currency.symbol,
+          code: currency.code,
+          name: currency.name,
+          symbol: currency.symbol,
         },
     });
     if (!user) throw new ApiError(500, "user creation failed");
@@ -108,4 +109,31 @@ const createManager = asyncHandler(async (req, res) => {
     res.json(new ApiResponse(201, {}, "new manager created"));
 });
 
-export { createEmployee, createManager };
+const updateUser=asyncHandler(async(req,res)=>{
+    const id=new mongoose.Types.ObjectId(req.params.id)
+    const { name, email, role, managerId, country } = req.body;
+
+    const existingUser = await User.findById(id);
+    if (!existingUser) throw new ApiError(404, "no user found");
+
+    if(country){
+      const currency = await getCurrencyByCountry(country);
+      if (!currency) throw new ApiError(400, "incorrect country");
+      existingUser.currency= {
+          code: currency.code,
+          name: currency.name,
+          symbol: currency.symbol,
+      }
+    }
+    if (name) existingUser.name = name;
+    if (email) existingUser.email = email;
+    if (role) existingUser.role = role;
+    if (managerId) existingUser.managerId = managerId;
+
+    await existingUser.save({validateBeforeSave:false})
+    res.json(
+      new ApiResponse(200,{},"user updated successfully")
+    )
+})
+
+export { createEmployee, createManager, updateUser };
