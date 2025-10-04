@@ -1,51 +1,66 @@
 // Frontend/src/pages/DraftExpensesPage.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const DraftExpensesPage = () => {
     const navigate = useNavigate();
+    const [drafts, setDrafts] = useState([]);
 
-    // Mock data - FUTURE: Fetch from API
-    const [drafts, setDrafts] = useState([
-        {
-            id: 1,
-            createdDate: '2025-10-01',
-            lastModified: '2025-10-02',
-            totalAmount: 1250.50,
-            currency: 'INR',
-            itemCount: 3,
-            description: 'September travel expenses',
-        },
-        {
-            id: 2,
-            createdDate: '2025-09-28',
-            lastModified: '2025-09-28',
-            totalAmount: 450.00,
-            currency: 'USD',
-            itemCount: 1,
-            description: 'Software subscription',
-        },
-    ]);
+    // Load drafts from localStorage
+    useEffect(() => {
+        const savedDrafts = JSON.parse(localStorage.getItem('expenseDrafts') || '[]');
+        setDrafts(savedDrafts);
+    }, []);
 
-    const handleEdit = (draftId) => {
-        // FUTURE: Navigate to expense submission page with draft data
-        navigate(`/employee/submit-expense?draftId=${draftId}`);
+    const handleEdit = (draft) => {
+        // Navigate to expense submission page with draft data
+        navigate('/employee/new-expense', { state: { expense: draft } });
     };
 
     const handleDelete = (draftId) => {
         if (window.confirm('Are you sure you want to delete this draft?')) {
-            setDrafts(drafts.filter(draft => draft.id !== draftId));
-            // FUTURE: DELETE /api/expenses/drafts/:id
+            const updatedDrafts = drafts.filter(draft => draft.id !== draftId);
+            setDrafts(updatedDrafts);
+            localStorage.setItem('expenseDrafts', JSON.stringify(updatedDrafts));
             alert('Draft deleted!');
         }
     };
 
-    const handleSubmit = (draftId) => {
+    const handleSubmit = (draft) => {
         if (window.confirm('Submit this draft for approval?')) {
-            // FUTURE: POST /api/expenses/drafts/:id/submit
-            setDrafts(drafts.filter(draft => draft.id !== draftId));
+            // Move from drafts to expenses
+            const expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+            const submittedExpense = {
+                ...draft,
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+                history: [
+                    {
+                        id: Date.now(),
+                        approver: 'System',
+                        status: 'Pending Approval',
+                        time: new Date().toLocaleString('en-GB', { 
+                            hour: '2-digit', 
+                            minute: '2-digit', 
+                            day: 'numeric', 
+                            month: 'short', 
+                            year: 'numeric' 
+                        })
+                    }
+                ]
+            };
+            
+            expenses.push(submittedExpense);
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            
+            // Remove from drafts
+            const updatedDrafts = drafts.filter(d => d.id !== draft.id);
+            setDrafts(updatedDrafts);
+            localStorage.setItem('expenseDrafts', JSON.stringify(updatedDrafts));
+            
             alert('Draft submitted for approval!');
+            navigate('/employee/dashboard');
         }
     };
 
@@ -53,7 +68,7 @@ const DraftExpensesPage = () => {
         <div style={styles.container}>
             <div style={styles.header}>
                 <h2>My Draft Expenses</h2>
-                <button onClick={() => navigate('/employee/submit-expense')} style={styles.newButton}>
+                <button onClick={() => navigate('/employee/new-expense')} style={styles.newButton}>
                     + Create New Expense
                 </button>
             </div>
@@ -63,7 +78,7 @@ const DraftExpensesPage = () => {
                     <p style={styles.emptyIcon}>📝</p>
                     <h3>No Draft Expenses</h3>
                     <p>You don't have any saved drafts. Create a new expense report to get started.</p>
-                    <button onClick={() => navigate('/employee/submit-expense')} style={styles.createButton}>
+                    <button onClick={() => navigate('/employee/new-expense')} style={styles.createButton}>
                         Create New Expense
                     </button>
                 </div>
@@ -72,38 +87,42 @@ const DraftExpensesPage = () => {
                     {drafts.map(draft => (
                         <div key={draft.id} style={styles.draftCard}>
                             <div style={styles.cardHeader}>
-                                <h3 style={styles.cardTitle}>Draft #{draft.id}</h3>
-                                <span style={styles.badge}>{draft.itemCount} items</span>
+                                <h3 style={styles.cardTitle}>Draft - {draft.description || 'No Description'}</h3>
+                                <span style={styles.badge}>{draft.category || 'Uncategorized'}</span>
                             </div>
 
                             <div style={styles.cardBody}>
                                 <div style={styles.infoRow}>
                                     <span style={styles.label}>Description:</span>
-                                    <span>{draft.description}</span>
+                                    <span>{draft.description || '-'}</span>
                                 </div>
                                 <div style={styles.infoRow}>
                                     <span style={styles.label}>Total Amount:</span>
-                                    <strong>{draft.totalAmount} {draft.currency}</strong>
+                                    <strong>{draft.totalAmount || '0'} {draft.currency}</strong>
                                 </div>
                                 <div style={styles.infoRow}>
-                                    <span style={styles.label}>Created:</span>
-                                    <span>{draft.createdDate}</span>
+                                    <span style={styles.label}>Expense Date:</span>
+                                    <span>{draft.expenseDate}</span>
                                 </div>
                                 <div style={styles.infoRow}>
-                                    <span style={styles.label}>Last Modified:</span>
-                                    <span>{draft.lastModified}</span>
+                                    <span style={styles.label}>Paid By:</span>
+                                    <span>{draft.paidBy}</span>
+                                </div>
+                                <div style={styles.infoRow}>
+                                    <span style={styles.label}>Last Saved:</span>
+                                    <span>{new Date(draft.savedAt).toLocaleString()}</span>
                                 </div>
                             </div>
 
                             <div style={styles.cardFooter}>
                                 <button 
-                                    onClick={() => handleEdit(draft.id)} 
+                                    onClick={() => handleEdit(draft)} 
                                     style={styles.editButton}
                                 >
                                     Edit
                                 </button>
                                 <button 
-                                    onClick={() => handleSubmit(draft.id)} 
+                                    onClick={() => handleSubmit(draft)} 
                                     style={styles.submitButton}
                                 >
                                     Submit

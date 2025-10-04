@@ -14,6 +14,7 @@ import ExpenseSubmissionPage from './pages/ExpenseSubmissionPage';
 import ManagerApprovalDetail from './pages/ManagerApprovalDetail';
 import AdminMainDashboard from './pages/AdminMainDashboard';
 import DraftExpensesPage from './pages/DraftExpensesPage';
+import NewExpenseSubmission from './pages/NewExpenseSubmission';
 
 const Layout = ({ children }) => (
     <div style={{ fontFamily: 'Arial, sans-serif' }}>
@@ -38,6 +39,7 @@ function App() {
           <Route path="/employee/dashboard" element={<EmployeeDashboard />} />
           <Route path="/employee/submit" element={<ExpenseForm />} />
           <Route path="/employee/submit-expense" element={<ExpenseSubmissionPage />} />
+          <Route path="/employee/new-expense" element={<NewExpenseSubmission />} />
           <Route path="/employee/drafts" element={<DraftExpensesPage />} />
           <Route path="/employee/history" element={<EmployeeDashboard />} />
           
