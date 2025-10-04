@@ -5,6 +5,18 @@ import ApiResponse from "../utils/ApiResponse.js";
 import crypto from "crypto"
 import { Otp } from "../models/otp.model.js";
 import { sendEmail } from "../utils/email.js";
+import { Company } from "../models/company.model.js";
+import { getCurrencyByCountry } from "../utils/currencyHelper.js";
+
+function generatePassword(length = 8) {
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return password;
+}
 
 
 const generateAccessAndRefereshTokens = async (user) => {
@@ -72,163 +84,31 @@ const meController = (req, res) => {
 };
 
 
-const login=asyncHandler(async(req,res)=>{
-  const {fullname,email,password}=req.body
-  
-  if(!fullname && !email) throw new ApiError(403,"provide fullname or email")
-  if(!password) throw new ApiError(403,"provide password")
-  
-  let user=await User.findOne({
-    $or:[
-      {name:fullname},
-      {email:email}
-    ]
-  }).select("+password")
-  if(!user) throw new ApiError(500,"user not found,please register")
-  
-  const isCorrect=await user.isPasswordCorrect(password)
-  if(!isCorrect) throw new ApiError(403,"incorrect password")
-  
-    console.log(user);
-    
-  if(!user.isVerified) throw new ApiError(403,"user not verified,please verify email")
-
-  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user)
-
-  const options={
-    httpOnly:true,
-    secure:true
-  }
-
-  user=await User.findById(user._id).select("-googleId -role -avatar")
-
-  return res
-    .status(200)
-    .cookie("accessToken",accessToken,options)
-    .cookie("refreshToken",refreshToken,options)
-    .json(
-      new ApiResponse(200,user,"user logged in successfully")
-    )
-})
-
-const generateOtp = ()=> crypto.randomInt(100000,999999).toString()
-
-const expiry= () => new Date(Date.now() + 60*5*1000)
-
 const register = asyncHandler(async (req, res) => {
-  const { fullname, email, password, role } = req.body;
-  if (!fullname || !email || !password) throw new ApiError(403, "provide all fields");
+  const { name, email, password,confirmPassword,country } = req.body;
 
-  if (role === "admin") throw new ApiError(403, "You cannot register as admin");
+  if (!name || !email || !password || !confirmPassword || !country) throw new ApiError(403, "provide all fields");
   
-  let user = await User.findOne({ email }).select("-password -role -__v");
-  if(user) throw new ApiError(401,"user already registered.please login or verify email")
+  const currency = await getCurrencyByCountry(country);
+  if (!currency) throw new ApiError(400,"incorrect country")
 
-  user = await User.create({
-    name: fullname,
+  let company = await Company.create({
+    name: name,
     email: email,
-    password: password,
-    role:role || "user"
+    country: country,
+    currency:currency
+  })
+  if (!company) throw new ApiError(500, "company creation failed");
+
+  const user = await User.create({
+    name: `Admin_${company.name}`,
+    email: email,
+    password: generatePassword(7),
+    role: "admin",
+    companyId: company._id,
   });
   if (!user) throw new ApiError(500, "user creation failed");
 
-
-  const otp=await Otp.create({
-    purpose: "signup",
-    user: user._id,
-    email: user.email,
-    code: generateOtp(),
-    expiresAt: expiry(),
-  });
-
-  await sendEmail(user.email,otp.code)  
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, user, "user registered successfully"));
-});
-
-
-const verifyOtp=asyncHandler(async(req,res)=>{
-  const { email, otp } = req.body;
-  if (!otp|| !email) throw new ApiError(403, "provide all fields");
-
-  const user=await User.findOne({email}).select("-password -role -__v")
-  if(!user) throw new ApiError(404,"no user registered with this email")
-
-  if(user.isVerified) throw new ApiError(403,"user already verified")
-
-  let otpDoc =await Otp.findOne({email,purpose:"signup",used:false}).sort({createdAt:-1})
-  if(!otpDoc) throw new ApiError(404,"no otp send")
-  
-  if(otpDoc.expiresAt<new Date()) throw new ApiError(404,"opt already expired")
-  if(otpDoc.code!=otp) throw new ApiError(403,"incorrect otp")
-
-  otpDoc.used=true
-  await otpDoc.save()
-  user.isVerified=true;
-
-  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
-    user
-  );
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  return res
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(new ApiResponse(200, user, "otp verified successfully"));
-})
-
-const resendOtp= asyncHandler(async(req, res) => {
-    const { email } = req.body;
-    if (!email) throw new ApiError(403, "provide all fields");
-
-    const user = await User.findOne({ email });
-    if (!user) throw new ApiError(404, "no user registered with this email");
-
-    if (user.isVerified) throw new ApiError(403, "user already verified");
-
-    let otpDoc = await Otp.findOne({ email });
-    if (!otpDoc) {
-        await Otp.create({
-          purpose: "signup",
-          user: user._id,
-          email: user.email,
-          code: generateOtp(),
-          expiresAt: expiry(),
-        });
-    }
-    else{
-      const diff=(new Date()-otpDoc.updatedAt)/1000
-      if(diff<60) throw new ApiError(429,`Please wait ${60 - Math.floor(diff)}s before requesting another OTP`);
-
-      otpDoc.code=generateOtp()
-      otpDoc.expiresAt=expiry()
-      await otpDoc.save()
-    }
-
-    await sendEmail(user.email, otpDoc.code);  
-
-    return res
-      .json(new ApiResponse(200, {}, "otp resend successfully"));
-});
-
-
-const userRegisterUsingEmail = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
-
-  if (!username || !email || !password)
-    throw new ApiError(403, "provide all fields");
-  let user = await User.create({
-    name: username,
-    email: email,
-    password: password,
-  });
-  if (!user) throw new ApiError(500, "user creation failed");
 
   const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
     user
@@ -240,7 +120,7 @@ const userRegisterUsingEmail = asyncHandler(async (req, res) => {
   };
 
   user = await User.findById(user._id).select(
-    "-password -googleId -role -avatar"
+    "-password -role"
   );
 
   return res
@@ -250,7 +130,7 @@ const userRegisterUsingEmail = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, user, "user registered successfully"));
 });
 
-const loginUsingEmail = asyncHandler(async (req, res) => {
+const login = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
 
   if (!username && !email) throw new ApiError(403, "provide username or email");
@@ -282,51 +162,11 @@ const loginUsingEmail = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "user logged in successfully"));
 });
 
-const adminRegisterUsingEmail = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body;
-
-  if (!username || !email || !password)
-    throw new ApiError(403, "provide all fields");
-  let user = await User.create({
-    name: username,
-    email: email,
-    password: password,
-    role: "admin",
-  });
-  if (!user) throw new ApiError(500, "user creation failed");
-
-  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(
-    user
-  );
-
-  const options = {
-    httpOnly: true,
-    secure: true,
-  };
-
-  user = await User.findById(user._id).select(
-    "-password -googleId -role -avatar"
-  );
-
-  return res
-    .status(201)
-    .cookie(accessToken, "accessToken", options)
-    .cookie(refreshToken, "refreshToken", options)
-    .json(new ApiResponse(201, user, "user registered successfully"));
-});
-
 
 export {
   refreshController,
   logout,
   meController,
   register,
-  login,
-  verifyOtp,
-  resendOtp,
-  authenticateController,
-  callbackController,
-  userRegisterUsingEmail,
-  loginUsingEmail,
-  adminRegisterUsingEmail,
+  login
 };
